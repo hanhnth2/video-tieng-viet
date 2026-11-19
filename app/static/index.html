@@ -2,146 +2,188 @@
 <html lang="vi">
 <head>
 <meta charset="utf-8">
-<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <title>Video chuyển đổi Tiếng Việt</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Be+Vietnam+Pro:wght@400;500;600;700;800&family=Noto+Sans+SC:wght@700&display=swap">
 <style>
-:root{--bg:#0f1115;--panel:#171a21;--panel2:#1e222b;--line:#2a2f3a;--text:#e8eaf0;--muted:#8b93a7;
---accent:#ff2e4d;--accent2:#f4c710;--ok:#22c55e;--err:#ef4444;--radius:14px}
+/* Bố cục: cột trái (video, nút bắt đầu, lịch sử) + vùng lớn bên phải (kết quả, cài đặt theo thẻ); xếp dọc trên điện thoại */
+:root{
+  --bg:#EEF2F1; --panel:#FFFFFF; --panel2:#E3E9E7; --text:#14211D; --muted:#5B6B66; --line:#CFD9D6;
+  --accent:#0B7A62; --accent-ink:#FFFFFF; --accent-soft:#D4EEE6; --accent2:#A35A00; --warn-soft:#FBEBD3;
+  --ok:#0B7A62; --err:#B42318; --info:#2F6FED; --info-soft:#DCE7FD; --radius:12px;
+  --font:"Be Vietnam Pro", system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+}
+@media (prefers-color-scheme: dark){:root:not([data-theme="light"]){
+  --bg:#0F1614; --panel:#17211E; --panel2:#0B110F; --text:#E6EEEB; --muted:#93A6A0; --line:#2A3833;
+  --accent:#3CC29F; --accent-ink:#06261D; --accent-soft:#16372E; --accent2:#F0B35C; --warn-soft:#3A2A12;
+  --ok:#3CC29F; --err:#FF8A80; --info:#8DB1FF; --info-soft:#1B2A47; color-scheme:dark}}
+:root[data-theme="dark"]{
+  --bg:#0F1614; --panel:#17211E; --panel2:#0B110F; --text:#E6EEEB; --muted:#93A6A0; --line:#2A3833;
+  --accent:#3CC29F; --accent-ink:#06261D; --accent-soft:#16372E; --accent2:#F0B35C; --warn-soft:#3A2A12;
+  --ok:#3CC29F; --err:#FF8A80; --info:#8DB1FF; --info-soft:#1B2A47; color-scheme:dark}
 *{box-sizing:border-box}
-body{margin:0;background:var(--bg);color:var(--text);font:15px/1.5 system-ui,-apple-system,"Segoe UI",Roboto,sans-serif}
-header{padding:18px 24px;border-bottom:1px solid var(--line);display:flex;align-items:center;gap:12px}
-header .logo{width:40px;height:40px;font-size:13px;flex:none;border-radius:9px;background:linear-gradient(135deg,var(--accent),#ff7a45);display:grid;place-items:center;font-weight:800}
-header h1{font-size:18px;margin:0}
-header small{color:var(--muted)}
-main{max-width:1180px;margin:0 auto;padding:24px 16px;display:grid;grid-template-columns:minmax(0,1.15fr) minmax(0,1fr);gap:20px}
-@media(max-width:900px){main{grid-template-columns:1fr}}
-.card{background:var(--panel);border:1px solid var(--line);border-radius:var(--radius);padding:18px}
-.card h2{font-size:15px;margin:0 0 12px;display:flex;align-items:center;gap:8px}
-.card h2 .n{width:22px;height:22px;border-radius:50%;background:var(--accent);font-size:12px;display:grid;place-items:center}
-textarea,input[type=text],select{width:100%;background:var(--panel2);border:1px solid var(--line);color:var(--text);border-radius:10px;padding:10px 12px;font:inherit}
-textarea{min-height:70px;resize:vertical}
-.row{display:flex;gap:10px;align-items:center;flex-wrap:wrap}
-.btn{border:0;border-radius:10px;padding:10px 16px;font:inherit;font-weight:600;cursor:pointer;background:var(--panel2);color:var(--text);border:1px solid var(--line)}
-.btn.primary{background:var(--accent);border-color:var(--accent);color:#fff}
-.btn.primary:disabled{opacity:.5;cursor:not-allowed}
+html{padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}
+body{margin:0;background:var(--bg);color:var(--text);font-family:var(--font);font-size:14px;line-height:1.5}
+[hidden]{display:none!important}
+.wrap{max-width:1320px;margin:0 auto;padding:20px max(16px,env(safe-area-inset-right,0px)) 40px max(16px,env(safe-area-inset-left,0px));display:flex;flex-direction:column;gap:16px}
+header{display:flex;flex-wrap:wrap;align-items:center;justify-content:space-between;gap:12px}
+header .brand{display:flex;align-items:center;gap:12px}
+header .logo{width:44px;height:44px;flex:none;border-radius:12px;background:var(--accent);color:var(--accent-ink);display:grid;place-items:center;font-weight:800;font-size:14px;font-family:"Noto Sans SC",var(--font)}
+h1{font-size:24px;font-weight:800;margin:0;letter-spacing:-.01em;text-wrap:balance}
+h1 small{font-size:14px;font-weight:500;color:var(--muted);letter-spacing:0}
+header p{margin:2px 0 0;color:var(--muted)}
+.author{color:var(--accent);font-weight:700}
+/* lưới chính */
+.grid{display:grid;grid-template-columns:340px minmax(0,1fr);grid-template-areas:"input stage" "hist stage";gap:16px;align-items:start}
+.a-input{grid-area:input}.a-stage{grid-area:stage;display:flex;flex-direction:column;gap:16px;min-width:0}.a-hist{grid-area:hist}
+@media (max-width:900px){.grid{grid-template-columns:minmax(0,1fr);grid-template-areas:"input" "stage" "hist"}}
+.card,.panel{background:var(--panel);border:1px solid var(--line);border-radius:var(--radius);padding:16px;min-width:0}
+.card h2{font-size:15px;font-weight:700;margin:0 0 12px;display:flex;align-items:center;gap:8px}
+.card h2 .n{width:22px;height:22px;border-radius:50%;background:var(--accent);color:var(--accent-ink);font-size:12px;display:grid;place-items:center;flex:none}
+.label,.subh{font-size:11px;text-transform:uppercase;letter-spacing:.06em;color:var(--muted);font-weight:600}
+.subh{margin:16px 0 8px}
+.subh .btn,.label .btn{text-transform:none;letter-spacing:0;font-size:13px}
+textarea,input[type=text],select{width:100%;font:inherit;color:var(--text);background:var(--panel2);border:1px solid var(--line);border-radius:8px;padding:9px 10px}
+textarea{min-height:76px;resize:vertical}
+.row{display:flex;gap:8px;align-items:center;flex-wrap:wrap}
+.rowsb{display:flex;justify-content:space-between;align-items:center;gap:8px}
+button,.btn{font:inherit;font-weight:600;border-radius:8px;border:1px solid var(--line);background:var(--panel);color:var(--text);padding:8px 12px;cursor:pointer;display:inline-flex;align-items:center;gap:6px;justify-content:center;text-decoration:none}
+button:hover,.btn:hover{border-color:var(--accent)}
+.btn.primary,button.primary{background:var(--accent);border-color:var(--accent);color:var(--accent-ink)}
+button:disabled,.btn:disabled{opacity:.5;cursor:not-allowed}
 .btn.small{padding:6px 10px;font-size:13px}
+.btn.big{width:100%;padding:13px;font-size:15px}
+button:focus-visible,input:focus-visible,textarea:focus-visible,select:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
 .muted{color:var(--muted);font-size:13px}
-.tabs{display:flex;gap:6px;margin-bottom:10px}
-.tab{padding:6px 12px;border-radius:999px;background:var(--panel2);border:1px solid var(--line);cursor:pointer;font-size:13px}
-.tab.on{background:var(--text);color:#111}
-.voices{display:grid;grid-template-columns:repeat(auto-fill,minmax(170px,1fr));gap:8px;max-height:330px;overflow:auto;padding-right:4px}
-.voice{position:relative;background:var(--panel2);border:2px solid transparent;border-radius:12px;padding:10px 36px 10px 48px;cursor:pointer;min-height:62px}
-.voice.on{border-color:var(--accent)}
-.voice .av{position:absolute;left:9px;top:12px;width:32px;height:32px;border-radius:50%;display:grid;place-items:center;font-size:16px}
-.voice .av.female{background:#ff5d8f33}.voice .av.male{background:#4f8cff33}
+.drop{border:1.5px dashed var(--line);border-radius:10px;padding:16px;text-align:center;color:var(--muted);cursor:pointer;background:var(--panel2);font-size:13px}
+.drop:hover,.drop.over{border-color:var(--accent);color:var(--text)}
+.drop.has{border-color:var(--accent);color:var(--accent);font-weight:600}
+/* thẻ cài đặt */
+.tabsbar{display:flex;gap:4px;overflow-x:auto;border-bottom:1px solid var(--line);margin:-4px -4px 14px;padding:0 4px;scrollbar-width:none}
+.tabsbar button{border:0;border-bottom:2px solid transparent;border-radius:0;background:none;color:var(--muted);padding:10px 12px;white-space:nowrap;font-weight:600}
+.tabsbar button[aria-pressed="true"]{color:var(--accent);border-bottom-color:var(--accent)}
+@media(max-width:600px){.tabsbar{flex-wrap:wrap;overflow:visible}.tabsbar button{padding:8px 10px}}
+.tabpane{display:none}.tabpane.on{display:block}
+.tabpane > h2{display:none}
+/* lọc giọng nữ/nam */
+.tabs{display:inline-flex;border:1px solid var(--line);border-radius:8px;overflow:hidden;margin-bottom:10px}
+.tab{padding:6px 14px;cursor:pointer;font-size:13px;font-weight:600;color:var(--muted)}
+.tab.on{background:var(--accent-soft);color:var(--text)}
+.voices{display:grid;grid-template-columns:repeat(auto-fill,minmax(180px,1fr));gap:8px;max-height:340px;overflow:auto;padding:2px}
+.voice{position:relative;background:var(--panel);border:1.5px solid var(--line);border-radius:10px;padding:10px 38px 10px 50px;cursor:pointer;min-height:62px}
+.voice:hover{border-color:var(--accent)}
+.voice.on{border-color:var(--accent);background:var(--accent-soft)}
+.voice .av{position:absolute;left:10px;top:12px;width:32px;height:32px;border-radius:50%;display:grid;place-items:center;font-size:16px;background:var(--panel2)}
 .voice b{display:block;font-size:13.5px}
 .voice span{font-size:12px;color:var(--muted)}
-.voice .play{position:absolute;right:6px;top:50%;margin-top:-13px;width:26px;height:26px;border-radius:50%;border:0;background:#ffffff14;color:var(--text);cursor:pointer;font-size:11px}
+.voice .play{position:absolute;right:6px;top:50%;margin-top:-14px;width:28px;height:28px;padding:0;border-radius:50%;background:var(--panel2);font-size:11px}
 .voice .play.loading{opacity:.5}
-.voice .prov{display:block;font-size:10.5px;color:#6b7386;margin-top:2px}
+.voice .prov{display:block;font-size:10.5px;color:var(--muted);margin-top:2px}
 .opts{display:grid;grid-template-columns:1fr 1fr;gap:12px 16px}
 @media(max-width:560px){.opts{grid-template-columns:1fr}}
 .opt label{display:block;font-size:13px;color:var(--muted);margin-bottom:4px}
 .switch{display:flex;align-items:center;gap:8px;cursor:pointer;font-size:14px}
-.switch input{width:18px;height:18px;accent-color:var(--accent)}
+.switch input{width:18px;height:18px;accent-color:var(--accent);flex:none}
 input[type=range]{width:100%;accent-color:var(--accent)}
 details{margin-top:12px}
-summary{cursor:pointer;color:var(--muted);font-size:13px}
-.colors{display:flex;gap:8px;align-items:center}
-input[type=color]{width:38px;height:30px;border:0;background:none;padding:0}
-.job{border:1px solid var(--line);border-radius:12px;padding:12px;margin-bottom:10px;background:var(--panel2)}
-.bar{height:8px;background:#ffffff12;border-radius:99px;overflow:hidden;margin:8px 0}
-.bar>i{display:block;height:100%;background:linear-gradient(90deg,var(--accent),#ff7a45);width:0;transition:width .4s}
-.status{font-size:12px;padding:2px 8px;border-radius:99px;background:#ffffff14}
-.status.done{background:#22c55e33;color:#7ee2a2}.status.error{background:#ef444433;color:#fca5a5}.status.running{background:#f4c71033;color:#f8de6b}
-.log{background:#0b0d11;border-radius:8px;padding:8px 10px;font:12px/1.5 ui-monospace,Consolas,monospace;max-height:180px;overflow:auto;white-space:pre-wrap;color:#b8c0d4;margin-top:8px}
-video{width:100%;border-radius:10px;background:#000;max-height:520px}
-.dbg{display:flex;gap:6px;overflow:auto;margin-top:8px}
-.dbg img{height:120px;border-radius:6px;cursor:zoom-in}
-.drop{border:1.5px dashed var(--line);border-radius:10px;padding:10px;text-align:center;color:var(--muted);font-size:13px;cursor:pointer}
-.drop.has{border-color:var(--accent2);color:var(--accent2)}
-.tr{max-height:200px;overflow:auto;font-size:13px;margin-top:8px}
-.tr div{padding:4px 0;border-bottom:1px solid var(--line)}
-.tr .zh{color:var(--muted)}
-.err{color:#fca5a5;font-size:13px;margin-top:6px}
-.subh{font-size:13px;font-weight:600;color:var(--muted);margin:14px 0 8px}
-.preview{border-radius:12px;min-height:130px;display:grid;place-items:center;padding:14px;margin-top:14px;
- background:linear-gradient(135deg,#6b8f71,#c9a46b 55%,#7a6aa8)}
+summary{cursor:pointer;color:var(--muted);font-size:13px;font-weight:600}
+input[type=color]{width:36px;height:28px;border:1px solid var(--line);border-radius:6px;background:none;padding:0}
+.seg{display:flex;gap:6px;flex-wrap:wrap}
+.seg button{flex:1;min-width:120px;flex-direction:column;gap:2px;padding:9px 10px;font-size:13.5px;border-width:1.5px}
+.seg button small{color:var(--muted);font-size:11px;font-weight:500}
+.seg button.on{border-color:var(--accent);background:var(--accent-soft)}
+.seg input[type=color]{width:46px;height:22px}
+.note{font-size:12.5px;color:var(--muted);background:var(--panel2);border-radius:10px;padding:10px 12px;margin-top:12px;line-height:1.6}
+.notice{background:var(--warn-soft);border-radius:10px;padding:10px 14px;font-size:13px}
+.notice b{color:var(--accent2)}
+/* xem trước kiểu chữ */
+.preview{border-radius:10px;min-height:130px;display:grid;place-items:center;padding:14px;margin-top:14px;background:linear-gradient(135deg,#6b8f71,#c9a46b 55%,#7a6aa8)}
 .preview img{max-width:100%;max-height:200px}
 .pgrid{display:grid;grid-template-columns:repeat(auto-fill,minmax(112px,1fr));gap:8px}
 .pitem{border:2px solid transparent;border-radius:10px;background:#3b4a40;height:64px;display:grid;place-items:center;cursor:pointer;padding:4px;position:relative}
 .pitem img{max-width:100%;max-height:40px}
-.pitem span{position:absolute;bottom:1px;left:0;right:0;text-align:center;font-size:10px;color:#e6e6e6;text-shadow:0 1px 2px #000}
-.pitem.on,.fitem.on{border-color:var(--accent)}
-.fgrid{display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:8px;max-height:260px;overflow:auto}
-.fitem{border:2px solid transparent;border-radius:10px;background:var(--panel2);height:48px;display:grid;place-items:center;cursor:pointer;padding:4px 6px}
+.pitem span{position:absolute;bottom:1px;left:0;right:0;text-align:center;font-size:10px;color:#eee;text-shadow:0 1px 2px #000}
+.pitem.on,.fitem.on{border-color:var(--accent);box-shadow:0 0 0 2px var(--accent-soft)}
+.fgrid{display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:8px;max-height:260px;overflow:auto;padding:2px}
+.fitem{border:2px solid transparent;border-radius:10px;background:#24302c;height:48px;display:grid;place-items:center;cursor:pointer;padding:4px 6px}
 .fitem img{max-width:100%;max-height:30px}
-.seg{display:flex;gap:6px;flex-wrap:wrap}
-.seg button{flex:1;min-width:110px;background:var(--panel2);border:2px solid var(--line);color:var(--text);border-radius:10px;padding:8px 10px;font:inherit;font-size:13.5px;cursor:pointer;display:flex;flex-direction:column;align-items:center;gap:2px}
-.seg button small{color:var(--muted);font-size:11px}
-.seg button.on{border-color:var(--accent);background:#ff2e4d1a}
-.seg input[type=color]{width:46px;height:22px}
-.note{font-size:12.5px;color:var(--muted);background:var(--panel2);border-radius:10px;padding:10px 12px;margin-top:12px;line-height:1.55}
-.cap{background:var(--panel2);border-radius:10px;padding:10px 12px;margin-top:8px}
-.cap h4{margin:0 0 6px;font-size:13px;display:flex;justify-content:space-between;align-items:center}
-.cap pre{white-space:pre-wrap;font:inherit;font-size:13.5px;margin:0}
-.cap ol{margin:0;padding-left:20px;font-size:13.5px}
-.cap li{padding:3px 0;cursor:pointer}
-.cap li:hover{color:var(--accent2)}
-.warn{color:#f8de6b;font-size:12.5px}
-header small .author,footer .author{color:var(--accent2)}
-footer{text-align:center;color:var(--muted);font-size:13px;padding:10px 16px 28px}
-#wmBox.off{opacity:.45}
-.wmwrap{display:flex;gap:16px;margin-top:12px;align-items:flex-start}
-@media(max-width:560px){.wmwrap{flex-direction:column;align-items:center}}
-.phone{position:relative;flex:none;width:162px;height:288px;border-radius:14px;overflow:hidden;
- background:linear-gradient(160deg,#6b8f71,#c9a46b 55%,#7a6aa8);border:3px solid #2a2f3a}
-#sgX,#sgY{position:absolute;inset:0}
-#sgImg{position:absolute;display:block}
-@keyframes sgBreathe{0%,100%{opacity:1}50%{opacity:.35}}
-@keyframes sgMarq{from{left:100%}to{left:0;transform:translateX(-100%)}}
-@keyframes sgBx{from{left:0}to{left:100%;transform:translateX(-100%)}}
-@keyframes sgBy{from{top:0}to{top:100%;transform:translateY(-100%)}}
-@keyframes sgHop{0%,23%{left:6px;top:6px;transform:none;opacity:1}24%,25%{opacity:0}
- 26%,48%{left:calc(100% - 6px);top:6px;transform:translateX(-100%);opacity:1}49%,50%{opacity:0}
- 51%,73%{left:calc(100% - 6px);top:calc(100% - 6px);transform:translate(-100%,-100%);opacity:1}74%,75%{opacity:0}
- 76%,98%{left:6px;top:calc(100% - 6px);transform:translateY(-100%);opacity:1}99%,100%{opacity:0}}
-@keyframes sgBlink{0%{opacity:0}6%,38%{opacity:1}44%,100%{opacity:0}}
-@keyframes sgPop{0%{scale:.3;opacity:0}4%{scale:1.15;opacity:1}6%,100%{scale:1}}
+.colorpick{display:flex;align-items:center;justify-content:space-between;gap:8px}
+/* kết quả */
+.job{border:1px solid var(--line);border-radius:10px;padding:10px 12px;margin-bottom:8px;background:var(--panel)}
+.bar{height:8px;background:var(--panel2);border-radius:99px;overflow:hidden;margin:10px 0 6px}
+.bar>i{display:block;height:100%;background:var(--accent);width:0;transition:width .4s}
+.status{font-size:11px;font-weight:700;padding:2px 8px;border-radius:999px;background:var(--panel2);color:var(--muted);white-space:nowrap}
+.status.done{background:var(--accent-soft);color:var(--accent)}
+.status.error{background:#B4231822;color:var(--err)}
+.status.running,.status.queued{background:var(--warn-soft);color:var(--accent2)}
+.status.review{background:var(--info-soft);color:var(--info)}
+.log{background:var(--panel2);border-radius:8px;padding:8px 10px;font:12px/1.5 ui-monospace,Consolas,monospace;max-height:180px;overflow:auto;white-space:pre-wrap;color:var(--muted);margin-top:10px}
+video{width:100%;border-radius:10px;background:#000;max-height:560px;display:block}
+.dbg{display:flex;gap:6px;overflow:auto;margin-top:8px}
+.dbg img{height:120px;border-radius:6px;cursor:zoom-in}
+.tr{max-height:220px;overflow:auto;font-size:13px;margin-top:8px}
+.tr div{padding:5px 0;border-bottom:1px solid var(--line)}
+.tr .zh{color:var(--muted)}
+.err{color:var(--err);font-size:13px;margin-top:6px}
+.empty{color:var(--muted);text-align:center;padding:26px 10px}
+.cap{background:var(--panel);border:1px solid var(--line);border-radius:10px;padding:12px;margin-top:10px}
+.cap h4{margin:0 0 8px;font-size:14px;display:flex;justify-content:space-between;align-items:center;gap:8px}
+.cap pre{white-space:pre-wrap;word-break:break-word;font:inherit;font-size:13.5px;margin:0;background:var(--panel2);border-radius:8px;padding:10px}
+.warn{color:var(--accent2);font-size:12.5px;margin-top:4px}
 .hook{border-top:1px solid var(--line);padding:8px 0}
 .hook .htext{font-size:14.5px;font-weight:600;margin:4px 0}
-.tag{font-size:11px;background:#f4c71026;color:var(--accent2);border-radius:99px;padding:2px 8px}
+.tag{font-size:11px;font-weight:700;background:var(--warn-soft);color:var(--accent2);border-radius:999px;padding:2px 8px}
+.tag.tscene{background:var(--panel2);color:var(--muted)}
 .rv{border-top:1px solid var(--line);padding:10px 0}
 .rv.off{opacity:.5}
 .rvhead{display:flex;align-items:center;gap:8px;cursor:pointer}
 .rvhead input{width:18px;height:18px;accent-color:var(--accent)}
 .rv img{display:block;max-width:100%;max-height:120px;border-radius:6px;margin:6px 0}
 .rv .zh{color:var(--muted);font-size:13px;margin-bottom:4px}
-.tag.tscene{background:#ffffff14;color:#c9cfdc}
-.status.review{background:#4f8cff33;color:#9cc0ff}
-.colorpick{display:flex;align-items:center;justify-content:space-between;gap:8px}
-.rowsb{display:flex;justify-content:space-between;align-items:center;gap:8px}
+/* chữ ký */
+#wmBox.off{opacity:.45}
+.wmwrap{display:flex;gap:16px;margin-top:12px;align-items:flex-start}
+@media(max-width:560px){.wmwrap{flex-direction:column;align-items:center}}
+.phone{position:relative;flex:none;width:162px;height:288px;border-radius:14px;overflow:hidden;background:linear-gradient(160deg,#6b8f71,#c9a46b 55%,#7a6aa8);border:3px solid var(--line)}
+#sgX,#sgY{position:absolute;inset:0}
+#sgImg{position:absolute;display:block}
+@keyframes sgBreathe{0%,100%{opacity:1}50%{opacity:.35}}
+@keyframes sgMarq{from{left:100%}to{left:0;transform:translateX(-100%)}}
+@keyframes sgHop{0%,23%{left:6px;top:6px;transform:none;opacity:1}24%,25%{opacity:0}
+ 26%,48%{left:calc(100% - 6px);top:6px;transform:translateX(-100%);opacity:1}49%,50%{opacity:0}
+ 51%,73%{left:calc(100% - 6px);top:calc(100% - 6px);transform:translate(-100%,-100%);opacity:1}74%,75%{opacity:0}
+ 76%,98%{left:6px;top:calc(100% - 6px);transform:translateY(-100%);opacity:1}99%,100%{opacity:0}}
+@keyframes sgBlink{0%{opacity:0}6%,38%{opacity:1}44%,100%{opacity:0}}
+@keyframes sgPop{0%{scale:.3;opacity:0}4%{scale:1.15;opacity:1}6%,100%{scale:1}}
+footer{text-align:center;color:var(--muted);font-size:13px;padding:4px 16px 28px}
+@media (prefers-reduced-motion:reduce){*{transition:none!important;animation:none!important}}
 </style>
 </head>
 <body>
-<header>
-  <div class="logo">中→V</div>
-  <div><h1>Video chuyển đổi Tiếng Việt</h1>
-  <small>Được tạo bởi <b class="author">Ngô Thị Hồng Hạnh</b> · Lồng tiếng Việt · Dịch chữ trên hình · Xoá logo Xiaohongshu</small></div>
-  <button class="btn small" id="appSettings" style="margin-left:auto;display:none" title="Đổi link máy chủ">⚙ Máy chủ</button>
-</header>
+<div class="wrap">
+  <header>
+    <div class="brand">
+      <div class="logo">中→V</div>
+      <div>
+        <h1>Video chuyển đổi Tiếng Việt <small>(web được tạo bởi <span class="author">Ngô Thị Hồng Hạnh</span>)</small></h1>
+        <p>Lồng tiếng Việt · Dịch tiêu đề, phụ đề · Xoá logo Xiaohongshu · Hook &amp; hashtag</p>
+      </div>
+    </div>
+    <button class="btn small" id="appSettings" style="display:none" title="Đổi link máy chủ">⚙ Máy chủ</button>
+  </header>
 
-<main>
-<section>
-  <div class="card">
-    <h2><span class="n">1</span> Link video Xiaohongshu</h2>
+  <div class="grid">
+    <aside class="card a-input">
+      <h2><span class="n">1</span> Video</h2>
+
     <textarea id="link" placeholder="Dán link hoặc cả đoạn chia sẻ, ví dụ: http://xhslink.com/o/9UOi5v2AxW1"></textarea>
     <div class="row" style="margin-top:8px">
-      <div class="drop" id="drop" style="flex:1">hoặc bấm để <b>tải file video</b> lên (khi link không tải được)</div>
+      <div class="drop" id="drop" style="flex:1"><b style="color:var(--text);display:block">hoặc chọn file video trong máy</b>dùng khi link không tải được</div>
       <input type="file" id="file" accept="video/*" hidden>
     </div>
     <div class="row" style="margin-top:8px">
-      <button class="btn small" id="extDl">🌐 Link không tải được? Mở trang tải video (DLBunny) — link tự chép sẵn</button>
+      <button class="btn small" id="extDl" style="width:100%">🌐 Link không tải được? Mở trang tải video (DLBunny)</button>
     </div>
     <details id="ckBox" style="margin-top:10px">
       <summary>🔑 Cookie Xiaohongshu — dùng khi link báo "yêu cầu đăng nhập" · <span id="ckStatus">…</span></summary>
@@ -161,9 +203,33 @@ footer{text-align:center;color:var(--muted);font-size:13px;padding:10px 16px 28p
       <textarea id="ckText" placeholder="Dán cookie ở đây (chuỗi a1=...; web_session=... hoặc JSON xuất từ Cookie-Editor)" style="margin-top:8px"></textarea>
       <div class="row" style="margin-top:8px"><button class="btn small primary" id="ckSave">Lưu cookie</button><button class="btn small" id="ckClear">Xoá cookie</button></div>
     </details>
-  </div>
+  
+      <button class="btn primary big" id="go" style="margin-top:14px">🚀 Bắt đầu chuyển đổi</button>
+      <div class="err" id="err"></div>
+      <div class="muted" style="margin-top:8px">Chỉnh giọng đọc, chữ, nhạc, chữ ký ở khung <b>Cài đặt</b> trước khi bấm.</div>
+    </aside>
 
-  <div class="card" style="margin-top:16px">
+    <section class="a-stage">
+      <div class="card" id="current" style="display:none">
+        <div class="rowsb"><h2 style="margin:0"><span class="n">2</span> Kết quả</h2><span class="status" id="cstatus"></span></div>
+        <div class="muted" id="cinput" style="margin-top:4px;word-break:break-all"></div>
+        <div class="bar"><i id="cbar"></i></div>
+        <div class="rowsb muted"><span id="cstep"></span><b id="cpct" style="color:var(--text)"></b></div>
+        <div id="cresult"></div>
+        <details><summary>Nhật ký xử lý</summary><div class="log" id="clog"></div></details>
+      </div>
+
+      <div class="card" id="settings">
+        <div class="rowsb" style="margin-bottom:8px"><h2 style="margin:0">⚙ Cài đặt</h2><span class="muted">Chọn từng thẻ để chỉnh</span></div>
+        <div class="tabsbar" role="tablist">
+          <button data-tab="voice" aria-pressed="true">🎙 Giọng đọc</button>
+          <button data-tab="text" aria-pressed="false">🔤 Chữ trên hình</button>
+          <button data-tab="music" aria-pressed="false">🎵 Nhạc nền</button>
+          <button data-tab="sig" aria-pressed="false">✍ Chữ ký</button>
+          <button data-tab="qual" aria-pressed="false">✨ Chất lượng</button>
+        </div>
+      <div class="tabpane" data-pane="voice">
+
     <h2><span class="n">2</span> Chọn giọng đọc</h2>
     <div class="tabs" id="tabs">
       <div class="tab on" data-g="all">Tất cả</div><div class="tab" data-g="female">Nữ</div><div class="tab" data-g="male">Nam</div>
@@ -173,9 +239,10 @@ footer{text-align:center;color:var(--muted);font-size:13px;padding:10px 16px 28p
       <div class="opt"><label>Tốc độ đọc: <b id="speedv">1.0x</b></label><input type="range" id="speed" min="0.8" max="1.3" step="0.05" value="1"></div>
       <div class="opt"><label>Giữ âm thanh gốc / nhạc nền: <b id="bgv">0%</b></label><input type="range" id="bg_volume" min="0" max="0.6" step="0.05" value="0"></div>
     </div>
-  </div>
+  
+      </div>
+      <div class="tabpane" data-pane="text">
 
-  <div class="card" style="margin-top:16px">
     <h2><span class="n">3</span> Chữ trên hình & logo</h2>
     <div class="opts">
       <label class="switch"><input type="checkbox" id="replace_text" checked> Dịch chữ Trung trên hình sang tiếng Việt</label>
@@ -191,7 +258,7 @@ footer{text-align:center;color:var(--muted);font-size:13px;padding:10px 16px 28p
     <label class="switch" style="margin-top:10px"><input type="checkbox" id="review_text"> Cho tôi xem & chọn từng đoạn chữ trước khi xuất video (sửa được bản dịch)</label>
     <div id="styleBox">
       <div class="preview" id="pvBox"><img id="pvImg" alt=""></div>
-      <input type="text" id="pvText" value="Siêu phẩm giá rẻ" placeholder="Gõ chữ để xem trước" style="margin-top:8px">
+      <input type="text" id="pvText" value="Ngô Thị Hồng Hạnh" placeholder="Gõ chữ để xem trước" style="margin-top:8px">
       <div class="subh">Kích thước khung chữ</div>
       <div class="seg" id="fitSeg">
         <button data-v="fit" class="on">Vừa chữ gốc <small>không che hình</small></button>
@@ -227,9 +294,10 @@ footer{text-align:center;color:var(--muted);font-size:13px;padding:10px 16px 28p
           <input type="text" id="manual_regions" placeholder="vd: 0.7,0,1,0.1"></div>
       </div>
     </details>
-  </div>
+  
+      </div>
+      <div class="tabpane" data-pane="music">
 
-  <div class="card" style="margin-top:16px">
     <h2><span class="n">4</span> Nhạc nền</h2>
     <div class="voices" id="tracks" style="max-height:240px"></div>
     <div class="opts" style="margin-top:12px">
@@ -244,11 +312,11 @@ footer{text-align:center;color:var(--muted);font-size:13px;padding:10px 16px 28p
       Nhạc viral / xu hướng trên TikTok, Facebook đều có bản quyền: để dùng hợp lệ, hãy xuất video <b>không chèn nhạc</b> (hoặc nhạc nhỏ),
       rồi chọn nhạc ngay trong app khi đăng: TikTok → <i>Thư viện âm nhạc thương mại</i> (tài khoản doanh nghiệp), Facebook/Instagram → <i>Thư viện âm thanh</i>.
       Gắn nhạc trong app còn giúp video được đề xuất theo trend âm thanh. Nguồn nhạc tải về được phép dùng thương mại: Pixabay Music, YouTube Audio Library, Facebook Sound Collection.</div>
-  </div>
+  
+      </div>
+      <div class="tabpane" data-pane="sig">
 
-  <div class="card" style="margin-top:16px">
-    <div class="rowsb"><h2 style="margin:0"><span class="n">5</span> Chữ ký bản quyền trên video</h2>
-      <label class="switch"><input type="checkbox" id="wm_enabled"> Chèn</label></div>
+    <label class="switch" style="font-weight:600"><input type="checkbox" id="wm_enabled"> Chèn chữ ký / tên của bạn lên video (khẳng định bản quyền)</label>
     <div id="wmBox" class="off">
       <div class="wmwrap">
         <div class="phone" id="sgPhone"><div id="sgX"><div id="sgY"><img id="sgImg" alt=""></div></div></div>
@@ -267,9 +335,10 @@ footer{text-align:center;color:var(--muted);font-size:13px;padding:10px 16px 28p
       </div>
       <div class="note">Chữ ký hiện suốt video. Hiệu ứng <b>Trôi nảy</b> và <b>Đổi góc</b> giúp người khác khó cắt bỏ hoặc che tên của bạn khi đăng lại.</div>
     </div>
-  </div>
+  
+      </div>
+      <div class="tabpane" data-pane="qual">
 
-  <div class="card" style="margin-top:16px">
     <h2><span class="n">6</span> Chất lượng video xuất</h2>
     <div class="seg" id="qSeg">
       <button data-v="max">Cao nhất <small>nét nhất, file lớn, xử lý lâu hơn</small></button>
@@ -282,30 +351,19 @@ footer{text-align:center;color:var(--muted);font-size:13px;padding:10px 16px 28p
     </div>
     <div class="note">Video xuất H.264 High Profile, giữ đúng tốc độ khung hình và màu của video gốc, âm thanh AAC 256 kbps —
       đúng khuyến nghị đăng TikTok / Facebook Reels (dọc 1080×1920). Tool luôn tải bản có độ phân giải cao nhất từ Xiaohongshu.</div>
-  </div>
+  
+      </div>
+        <button class="btn primary big" id="goBottom" style="margin-top:16px">🚀 Bắt đầu chuyển đổi</button>
+      </div>
+    </section>
 
-  <div class="row" style="margin-top:16px">
-    <button class="btn primary" id="go" style="flex:1;padding:14px">🚀 Bắt đầu chuyển đổi</button>
+    <aside class="card a-hist">
+      <div class="rowsb"><h2 style="margin:0">Lịch sử</h2><button class="btn small" id="refresh">Làm mới</button></div>
+      <div id="jobs" style="margin-top:12px"></div>
+    </aside>
   </div>
-  <div class="err" id="err"></div>
-</section>
-
-<section style="display:flex;flex-direction:column;gap:16px">
-  <div class="card" id="current" style="display:none">
-    <div class="rowsb"><h2 style="margin:0">Đang xử lý</h2><span class="status" id="cstatus"></span></div>
-    <div class="muted" id="cinput" style="margin-top:4px;word-break:break-all"></div>
-    <div class="bar"><i id="cbar"></i></div>
-    <div class="rowsb"><span id="cstep"></span><b id="cpct"></b></div>
-    <div id="cresult"></div>
-    <div class="log" id="clog"></div>
-  </div>
-  <div class="card">
-    <div class="rowsb"><h2 style="margin:0">Lịch sử</h2><button class="btn small" id="refresh">Làm mới</button></div>
-    <div id="jobs" style="margin-top:12px"></div>
-  </div>
-</section>
-</main>
-<footer>© Phần mềm chuyển đổi video Tiếng Việt — được tạo bởi <b class="author">Ngô Thị Hồng Hạnh</b></footer>
+  <footer>© Phần mềm chuyển đổi video Tiếng Việt — được tạo bởi <span class="author">Ngô Thị Hồng Hạnh</span></footer>
+</div>
 
 <script>
 const $ = s => document.querySelector(s);
@@ -373,6 +431,12 @@ function collectOptions() {
   return o;
 }
 
+document.querySelectorAll(".tabsbar button").forEach(b => b.onclick = () => {
+  document.querySelectorAll(".tabsbar button").forEach(x => x.setAttribute("aria-pressed", x === b));
+  document.querySelectorAll(".tabpane").forEach(p => p.classList.toggle("on", p.dataset.pane === b.dataset.tab));
+});
+document.querySelector('.tabpane[data-pane="voice"]').classList.add("on");
+$("#goBottom").onclick = () => { $("#go").click(); window.scrollTo({top:0, behavior:"smooth"}); };
 $("#go").onclick = async () => {
   $("#err").textContent = "";
   const link = $("#link").value.trim(), f = $("#file").files[0];
