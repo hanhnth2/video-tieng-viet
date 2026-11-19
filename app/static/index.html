@@ -632,7 +632,15 @@ function captionHtml(c) {
   if (!c) return "";
   const blk = (title, b) => `<div class="cap"><h4>${title}<button class="btn small" data-copy="${esc(b.full)}">Chép</button></h4><pre>${esc(b.full)}</pre></div>`;
   const presetOpts = PRESETS.filter(p => p.id !== "original").map(p => `<option value="${p.id}">${esc(p.name)}</option>`).join("");
-  return `<div class="cap"><h4>Câu hook 3 giây đầu</h4>
+  return `${c.tiktok?.onScreenHook ? `<div class="cap"><h4>🎬 Chữ hook in lên 3 giây đầu (TikTok)
+        <span><button class="btn small" data-copy="${esc(c.tiktok.onScreenHook)}">Chép</button>
+        <button class="btn small" data-burn="${esc(c.tiktok.onScreenHook)}">Chèn vào video</button></span></h4>
+        <div class="htext" style="font-size:16px;font-weight:700">${esc(c.tiktok.onScreenHook)}</div></div>` : ""}
+    ${blk("📱 TikTok", c.tiktok)}${blk("📘 Facebook Reels", c.facebook)}
+    ${(c.checks || []).length ? `<div class="cap"><h4>✅ Kiểm tra Tiêu chuẩn cộng đồng</h4>${c.checks.map(k =>
+        `<div style="font-size:13px">${k.ok === false ? "⚠" : "✓"} ${esc(k.text)}</div>`).join("")}</div>` : ""}
+    ${(c.tips || []).length ? `<div class="cap"><h4>💡 Mẹo đăng để dễ lên xu hướng</h4>${c.tips.map(t => `<div style="font-size:13px">• ${esc(t)}</div>`).join("")}</div>` : ""}
+<div class="cap"><h4>Câu hook dự phòng (chọn câu bạn thích để chèn vào video)</h4>
       <div class="opts" style="margin-bottom:8px">
         <div class="opt"><label>Kiểu chữ hook</label><select id="hkPreset">${presetOpts}</select></div>
         <div class="opt"><label>Vị trí / thời gian</label><div class="row" style="flex-wrap:nowrap">
@@ -648,8 +656,7 @@ function captionHtml(c) {
         ${h.why ? `<div class="muted">💡 ${esc(h.why)}</div>` : ""}
         ${(h.warn || []).map(w => `<div class="warn">⚠ ${esc(w)}</div>`).join("")}
       </div>`).join("")}</div>
-    ${blk("TikTok", c.tiktok)}${blk("Facebook", c.facebook)}
-    <div class="muted" style="margin-top:6px">Chủ đề: ${esc(c.topic || c.niche || "")} · Viết bởi: ${esc(c.engine || "")}</div>
+    <div class="muted" style="margin-top:6px">Chủ đề: ${esc(c.niche || c.topic || "")} · Viết bởi: ${esc(c.engine || "")}</div>
     ${(c.notes || []).map(n => `<div class="warn">• ${esc(n)}</div>`).join("")}`;
 }
 function hookResHtml(id, file, text) {
@@ -668,9 +675,25 @@ async function burnHook(text, btn) {
   catch (e) { alert(e.message); }
   btn.disabled = false; btn.textContent = old;
 }
+let capSaved = {};
+try { capSaved = JSON.parse(localStorage.getItem("capOpts") || "{}"); } catch {}
+function capInit() {
+  const t = $("#capTone"); if (!t) return;
+  if (capSaved.tone) t.value = capSaved.tone;
+  if (capSaved.aff) $("#capAff").value = capSaved.aff;
+  $("#capToneCustom").value = capSaved.toneCustom || "";
+  const sync = () => $("#capToneCustom").style.display = t.value === "custom" ? "" : "none";
+  t.onchange = sync; sync();
+}
 async function makeCaptions(id, btn) {
   btn.disabled = true; btn.textContent = "Đang viết…";
-  const fd = new FormData(); fd.append("tone", $("#capTone").value); fd.append("trending", $("#capTrend").value);
+  const toneSel = $("#capTone").value, toneCustom = $("#capToneCustom").value.trim();
+  capSaved = {niche: $("#capNiche").value, tone: toneSel, toneCustom, aff: $("#capAff").value, credit: $("#capCredit").value};
+  try { localStorage.setItem("capOpts", JSON.stringify(capSaved)); } catch {}
+  const fd = new FormData();
+  fd.append("tone", toneSel === "custom" ? (toneCustom || "Gần gũi") : toneSel);
+  fd.append("trending", $("#capTrend").value); fd.append("niche", capSaved.niche);
+  fd.append("affiliate", capSaved.aff); fd.append("credit", capSaved.credit);
   try { const c = await api(`/api/jobs/${id}/captions`, {method:"POST", body:fd}); $("#caps").innerHTML = captionHtml(c); }
   catch (e) { $("#caps").innerHTML = `<div class="err">${esc(e.message)}</div>`; }
   btn.disabled = false; btn.textContent = "✨ Tạo lại hook & hashtag";
@@ -746,15 +769,16 @@ function resultHtml(j) {
     <a class="btn small" href="${f(j.srt)}?download=1">⬇ Phụ đề .srt</a>
 </div>
     <div class="cap" style="margin-top:10px">
-      <h4>✨ Hook & hashtag cho TikTok / Facebook</h4>
+      <h4>✨ Viết nội dung đăng TikTok / Facebook (hook + caption ngắn + hashtag)</h4>
       <div class="opts">
-        <div class="opt"><label>Giọng văn</label><select id="capTone">
-          <option value="gần gũi, tự nhiên">Gần gũi, tự nhiên</option><option value="vui nhộn, bắt trend">Vui nhộn, bắt trend</option>
-          <option value="chuyên gia, đáng tin">Chuyên gia, đáng tin</option><option value="cảm xúc, truyền cảm hứng">Truyền cảm hứng</option>
-          <option value="ngắn gọn, mạnh mẽ">Ngắn gọn, mạnh mẽ</option></select></div>
-        <div class="opt"><label>Hashtag xu hướng hôm nay (tuỳ chọn)</label><input type="text" id="capTrend" placeholder="#trend1 #trend2"></div>
+        <div class="opt"><label>Chủ đề trang (để trống: AI tự nhận theo video)</label><input type="text" id="capNiche" placeholder="Ví dụ: Yoga, đồ gia dụng, làm đẹp" value="${esc(capSaved.niche || "")}"></div>
+        <div class="opt"><label>Giọng văn</label><select id="capTone"><option value="Gần gũi, như chị em chia sẻ: xưng mình - các bạn/chị em, kể như tâm sự với bạn thân, có trải nghiệm cá nhân">Gần gũi, như chị em chia sẻ</option><option value="Chuyên gia, rõ ràng: giải thích ngắn gọn có lý do, dùng bước làm cụ thể, đáng tin nhưng không khô">Chuyên gia, rõ ràng</option><option value="Hài hước, năng lượng: dí dỏm, bắt trend nhẹ nhàng, câu ngắn, nhiều năng lượng nhưng không lố">Hài hước, năng lượng</option><option value="Nhẹ nhàng, chữa lành: chậm rãi, ấm áp, nhấn vào cảm giác thư giãn và chăm sóc bản thân">Nhẹ nhàng, chữa lành</option><option value="Kể chuyện cá nhân: mở bằng một câu chuyện có thật cảm giác 'hôm qua mình…', dẫn dắt đến bài học">Kể chuyện cá nhân</option><option value="Thẳng thắn, chỉ ra sai lầm: mở bằng một sai lầm nhiều người hay mắc, rồi chỉ cách làm đúng, giọng chắc chắn, không bịa số liệu">Thẳng thắn, chỉ ra sai lầm</option><option value="Truyền cảm hứng: khích lệ, tích cực, khiến người xem muốn bắt đầu ngay hôm nay">Truyền cảm hứng</option><option value="Mẹ bỉm sữa, đảm đang: giọng người mẹ bận rộn chia sẻ mẹo nhanh, tiết kiệm thời gian cho gia đình">Mẹ bỉm sữa, đảm đang</option><option value="Dân văn phòng bận rộn: nói về áp lực công việc, ngồi nhiều, thức khuya; mẹo làm được ngay tại bàn làm việc">Dân văn phòng bận rộn</option><option value="Người lớn tuổi, ân cần: lịch sự, chậm rãi, dễ hiểu, phù hợp cô chú lớn tuổi xem">Người lớn tuổi, ân cần</option><option value="Bán hàng tinh tế: giới thiệu sản phẩm qua trải nghiệm thật, nêu lợi ích cụ thể, không ép mua, không so sánh hạ thấp">Bán hàng tinh tế</option><option value="Hỏi đáp (Q&A): đặt câu hỏi người xem hay thắc mắc rồi trả lời thật ngắn">Hỏi đáp (Q&A)</option><option value="custom">✏️ Tự mô tả giọng văn…</option></select>
+          <input type="text" id="capToneCustom" maxlength="200" placeholder="Ví dụ: như cô giáo yoga vui tính, xưng cô - các con" style="margin-top:6px;display:none"></div>
+        <div class="opt"><label>Link tiếp thị (Shopee, TikTok Shop…)</label><select id="capAff"><option value="no">Không gắn link</option><option value="yes">Có gắn link</option></select></div>
+        <div class="opt"><label>Nguồn video (tự gắn vào cuối bài)</label><input type="text" id="capCredit" placeholder="Ví dụ: Xiaohongshu @tên_tác_giả" value="${esc(capSaved.credit || "")}"></div>
+        <div class="opt" style="grid-column:1/-1"><label>Hashtag xu hướng hôm nay (tuỳ chọn, xem ở TikTok Creative Center)</label><input type="text" id="capTrend" placeholder="#trend1 #trend2"></div>
       </div>
-      <button class="btn small" id="capBtn" data-id="${j.id}" style="margin-top:10px;border-color:var(--accent2);color:var(--accent2)">✨ ${j.captions ? "Tạo lại" : "Tạo"} hook & hashtag</button>
+      <button class="btn primary" id="capBtn" data-id="${j.id}" style="margin-top:10px">✨ ${j.captions ? "Viết lại" : "Viết"} nội dung đăng</button>
     </div>
     <div id="hookRes">${j.hook_result ? hookResHtml(j.id, j.hook_result, j.hook_text) : ""}</div>
     <div id="caps" data-id="${j.id}">${captionHtml(j.captions)}</div>`;
@@ -778,7 +802,7 @@ function watch(id) {
       $("#cbar").style.width = (j.progress || 0) + "%"; $("#cpct").textContent = Math.round(j.progress || 0) + "%";
       $("#cstep").textContent = j.step_label || "";
       const lg = $("#clog"); lg.textContent = (j.logs || []).join("\n"); lg.scrollTop = lg.scrollHeight;
-      if (j.status !== lastStatus) { $("#cresult").innerHTML = resultHtml(j); lastStatus = j.status; }
+      if (j.status !== lastStatus) { $("#cresult").innerHTML = resultHtml(j); lastStatus = j.status; capInit(); }
       if (j.status === "done" || j.status === "error") { clearInterval(timer); loadJobs(); }
     } catch (e) { clearInterval(timer); }
   };

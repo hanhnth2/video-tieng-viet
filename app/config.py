@@ -29,6 +29,8 @@ CACHE_DIR.mkdir(parents=True, exist_ok=True)
 WHISPER_MODEL = os.environ.get("WHISPER_MODEL", "medium")
 MAX_WORKERS = int(os.environ.get("MAX_WORKERS", "1"))
 ANTHROPIC_API_KEY = os.environ.get("ANTHROPIC_API_KEY", "")
+GEMINI_API_KEY = os.environ.get("GEMINI_API_KEY", "")   # Google Gemini (gói miễn phí) để viết nội dung đăng
+GEMINI_MODEL = os.environ.get("GEMINI_MODEL", "gemini-flash-latest")
 CLAUDE_MODEL = os.environ.get("CLAUDE_MODEL", "claude-opus-5-5")
 FPT_API_KEY = os.environ.get("FPT_API_KEY", "")
 XHS_COOKIE = os.environ.get("XHS_COOKIE", "")

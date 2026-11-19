@@ -51,7 +51,7 @@ def _public(job, logs=True):
 
 @app.get("/api/config")
 def get_config():
-    return {"whisper_model": config.WHISPER_MODEL, "claude": bool(config.ANTHROPIC_API_KEY),
+    return {"whisper_model": config.WHISPER_MODEL, "claude": bool(config.ANTHROPIC_API_KEY), "gemini": bool(config.GEMINI_API_KEY),
             "fpt": bool(config.FPT_API_KEY), "defaults": JobOptions().to_dict()}
 
 
@@ -162,13 +162,15 @@ async def submit_review(jid: str, request: Request):
 
 
 @app.post("/api/jobs/{jid}/captions")
-def make_captions(jid: str, tone: str = Form(""), trending: str = Form("")):
+def make_captions(jid: str, tone: str = Form(""), trending: str = Form(""), niche: str = Form(""),
+                  affiliate: str = Form("no"), credit: str = Form("")):
     j = manager.get(jid)
     if not j:
         raise HTTPException(404, "Không tìm thấy job")
     if j.data.get("status") != "done":
         raise HTTPException(400, "Video chưa xử lý xong")
-    data = captions.generate(j.data, tone=tone[:40], trending=trending[:300])
+    data = captions.generate(j.data, tone=tone[:300], trending=trending[:300], niche=niche[:200],
+                             affiliate=affiliate == "yes", credit=credit[:120])
     j.update(captions=data)
     return data
 
