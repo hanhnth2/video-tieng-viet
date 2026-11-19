@@ -65,7 +65,7 @@ docker compose up -d --build
 
 | Biến | Ý nghĩa |
 |---|---|
-| `WHISPER_MODEL` | `small` / `medium` / `large-v3`. CPU nên dùng `small`/`medium`, GPU dùng `large-v3` |
+| `WHISPER_MODEL` | `small` / `medium` / `large-v3-turbo` / `large-v3`. CPU nên dùng `small`, GPU dùng `large-v3-turbo` (nhanh, gần bằng `large-v3`) |
 | `ANTHROPIC_API_KEY` | Bật dịch bằng Claude (tự nhiên, đúng ngữ cảnh hơn Google Translate) |
 | `CLAUDE_MODEL` | Mặc định `claude-opus-5-5` |
 | `FPT_API_KEY` | Bật 9 giọng Việt bản xứ của FPT.AI |

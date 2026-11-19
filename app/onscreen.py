@@ -20,6 +20,9 @@ CJK = re.compile(r"[一-鿿]")
 WM_RE = re.compile(r"小红书|小紅書|红书号|紅書號|xiaohongshu|\bRED\b|^RED", re.I)
 ID_RE = re.compile(r"^[\s:：#@ID号]*\d{5,}[\s]*$", re.I)
 BOLD_RATIO = 0.27
+OCR_MAX_SIDE = 1440.0   # dò chữ ở độ phân giải vừa đủ (nhanh gấp ~2 lần, tiêu đề/phụ đề vẫn rõ)
+SKIP_CELL_DIFF = 6.0    # ô lưới thay đổi ít hơn mức này -> coi khung hình như cũ
+SKIP_MAX_RUN = 6        # tối đa dùng lại kết quả cũ liên tiếp bấy nhiêu lần
 _reader = None
 
 
@@ -48,7 +51,7 @@ def _run_ocr(img):
 # ======================= Dò chữ =======================
 def ocr_frame(frame, min_conf):
     H, W = frame.shape[:2]
-    sc = min(1.0, 1920.0 / max(W, H))
+    sc = min(1.0, OCR_MAX_SIDE / max(W, H))
     img = cv2.resize(frame, (int(W * sc), int(H * sc))) if sc < 1 else frame
     raw = []
     for pts, text, conf in _run_ocr(img):
@@ -238,7 +241,13 @@ def update_tracks(tracks, active, si, t, blocks, frame):
                 continue
             iou = box_iou(tr["last_box"], b["box"])
             sim = 1.0 if b["wm"] else difflib.SequenceMatcher(None, tr["last_text"], b["text"]).ratio()
-            if iou >= 0.2 and sim >= 0.4 and iou + sim > bs:
+            ok = iou >= 0.2 and sim >= 0.4
+            if not ok and not b["wm"] and sim >= 0.75:
+                # chữ gần như giống hệt nhưng khung đổi cỡ/vị trí (hiệu ứng zoom, chuyển cảnh) -> vẫn là cùng đoạn
+                lb = tr["last_box"]
+                d = np.hypot((lb[0] + lb[2] - b["box"][0] - b["box"][2]) / 2, (lb[1] + lb[3] - b["box"][1] - b["box"][3]) / 2)
+                ok = d < 0.6 * max(lb[2] - lb[0], lb[3] - lb[1])
+            if ok and iou + sim > bs:
                 best, bs = tr, iou + sim
         if best is None:
             best = {"obs": [], "texts": [], "wm": b["wm"], "red_only": b.get("red", False)}
@@ -306,6 +315,7 @@ def analyze(video: Path, opts, log=print):
     dt = step / fps
     tracks, active, samples = [], [], []
     idx = si = 0
+    last_small, last_dets, skip_run, n_skipped = None, None, 0, 0
     need_ocr = opts.replace_text or opts.remove_logo or opts.trim_outro
     while need_ocr:
         if not cap.grab():
@@ -313,7 +323,19 @@ def analyze(video: Path, opts, log=print):
         if idx % step == 0:
             ok, frame = cap.retrieve()
             if ok:
-                dets = ocr_frame(frame, opts.min_ocr_conf)
+                # khung hình gần như y hệt lần dò trước (so theo lưới 8x8 ô) -> dùng lại kết quả, khỏi chạy OCR
+                small = cv2.resize(cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY), (64, 64), interpolation=cv2.INTER_AREA)
+                same = False
+                if last_small is not None and skip_run < SKIP_MAX_RUN:
+                    cell = np.abs(small.astype(np.int16) - last_small).reshape(8, 8, 8, 8).mean(axis=(1, 3))
+                    same = float(cell.max()) < SKIP_CELL_DIFF
+                if same:
+                    dets = [dict(d) for d in last_dets]
+                    skip_run += 1
+                    n_skipped += 1
+                else:
+                    dets = ocr_frame(frame, opts.min_ocr_conf)
+                    last_small, last_dets, skip_run = small.astype(np.int16), [dict(d) for d in dets], 0
                 if not opts.replace_text:
                     dets = [d for d in dets if d["wm"]]
                 if opts.remove_logo:
@@ -334,6 +356,8 @@ def analyze(video: Path, opts, log=print):
                     log(f"  dò chữ {min(100, round(100 * idx / nframes))}%")
         idx += 1
     cap.release()
+    if si:
+        log(f"  dò chữ: {si} khung hình, dùng lại kết quả cho {n_skipped} khung giống hệt (nhanh hơn)")
     if not duration:
         duration = idx / fps
 
@@ -552,7 +576,22 @@ def save_debug(video: Path, info, out_dir: Path):
 
 
 # ======================= Xoá =======================
-def cover(frame, box, style, mode, line_h, pad_ratio=0.25):
+def _inpaint(roi, mask):
+    """Vá nền: vùng lớn thì vá ở độ phân giải thấp rồi phóng lên, chỉ dán vào phần bị xoá (nhanh hơn nhiều)."""
+    h, w = mask.shape
+    f = 3 if min(h, w) >= 180 else (2 if min(h, w) >= 60 else 1)
+    if f == 1:
+        return cv2.inpaint(roi, mask, 3, cv2.INPAINT_TELEA)
+    sw, sh = max(8, w // f), max(8, h // f)
+    small = cv2.resize(roi, (sw, sh), interpolation=cv2.INTER_AREA)
+    msk = cv2.resize(mask, (sw, sh), interpolation=cv2.INTER_NEAREST)
+    msk = cv2.dilate(msk, np.ones((3, 3), np.uint8))
+    fixed = cv2.resize(cv2.inpaint(small, msk, 3, cv2.INPAINT_TELEA), (w, h), interpolation=cv2.INTER_LINEAR)
+    m = (mask > 0)[..., None]
+    return np.where(m, fixed, roi)
+
+
+def cover(frame, box, style, mode, line_h, pad_ratio=0.25, cache=None):
     H, W = frame.shape[:2]
     p = max(3, int(line_h * pad_ratio))
     x1, y1 = max(0, int(box[0]) - p), max(0, int(box[1]) - p)
@@ -576,12 +615,22 @@ def cover(frame, box, style, mode, line_h, pad_ratio=0.25):
         mask[y1 - cy1:y2 - cy1, x1 - cx1:x2 - cx1] = mk
     else:
         mask[y1 - cy1:y2 - cy1, x1 - cx1:x2 - cx1] = 255
-    frame[cy1:cy2, cx1:cx2] = cv2.inpaint(roi, mask, 3, cv2.INPAINT_TELEA)
+    key = (cx1, cy1, cx2, cy2, mode)
+    if cache is not None and cache.get("key") == key:
+        # nền quanh chữ gần như không đổi so với khung trước -> dùng lại kết quả vá, khỏi tính lại
+        diff = np.abs(roi.astype(np.int16) - cache["src"]).mean()
+        if diff < 1.5:
+            frame[cy1:cy2, cx1:cx2] = cache["out"]
+            return
+    out = _inpaint(roi, mask)
+    if cache is not None:
+        cache.update(key=key, src=roi.astype(np.int16), out=out.copy())
+    frame[cy1:cy2, cx1:cx2] = out
 
 
-def cover_watermark(frame, box, line_h):
+def cover_watermark(frame, box, line_h, cache=None):
     """Logo XHS = khối đỏ có chữ + dòng ID: mở rộng vùng xoá rộng hơn chữ thường."""
-    cover(frame, box, {"bg": (0, 0, 0), "color": (255, 255, 255)}, "box", line_h, pad_ratio=0.7)
+    cover(frame, box, {"bg": (0, 0, 0), "color": (255, 255, 255)}, "box", line_h, pad_ratio=0.7, cache=cache)
 
 
 # ======================= Vẽ chữ Việt =======================
@@ -744,9 +793,9 @@ def render(video: Path, audio: Path, info, opts, out: Path, log=print, signature
                           "solid" if opts.cover_mode == "solid" else "box", 20)
                 for tr, bx in zip(act, boxes):
                     if tr["wm"]:
-                        cover_watermark(frame, bx, tr["line_h"])
+                        cover_watermark(frame, bx, tr["line_h"], cache=tr.setdefault("_cache", {}))
                     else:
-                        cover(frame, bx, tr["style"], opts.cover_mode, tr["line_h"])
+                        cover(frame, bx, tr["style"], opts.cover_mode, tr["line_h"], cache=tr.setdefault("_cache", {}))
                 placed = []
                 draw = [(tr, bx) for tr, bx in zip(act, boxes)
                         if not tr["wm"] and tr.get("sprite") is not None and not tr.get("absorbed")]

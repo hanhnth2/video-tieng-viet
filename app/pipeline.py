@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 import shutil
+import time
 from pathlib import Path
 
 from . import config, onscreen, signature, speech
@@ -25,8 +26,13 @@ def process(job, opts: JobOptions):
     work: Path = job.dir / "work"
     work.mkdir(parents=True, exist_ok=True)
 
+    clock = {"t": time.time(), "name": None}
+
     def step(name):
         label, a, _ = STEPS[name]
+        if clock["name"]:
+            job.log(f"  ⏱ {STEPS[clock['name']][0]}: {time.time() - clock['t']:.0f} giây")
+        clock.update(t=time.time(), name=name)
         job.update(step=name, step_label=label, progress=a)
         job.log(f"▶ {label}")
 
