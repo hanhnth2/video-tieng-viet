@@ -1,0 +1,10 @@
+data/
+node_modules/
+.wrangler/
+.dev.vars
+__pycache__/
+*.pyc
+.env
+*.zip
+android/build/
+android/*.keystore

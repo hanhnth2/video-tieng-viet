@@ -1,0 +1,757 @@
+<!doctype html>
+<html lang="vi">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Video chuyển đổi Tiếng Việt</title>
+<style>
+:root{--bg:#0f1115;--panel:#171a21;--panel2:#1e222b;--line:#2a2f3a;--text:#e8eaf0;--muted:#8b93a7;
+--accent:#ff2e4d;--accent2:#f4c710;--ok:#22c55e;--err:#ef4444;--radius:14px}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--text);font:15px/1.5 system-ui,-apple-system,"Segoe UI",Roboto,sans-serif}
+header{padding:18px 24px;border-bottom:1px solid var(--line);display:flex;align-items:center;gap:12px}
+header .logo{width:40px;height:40px;font-size:13px;flex:none;border-radius:9px;background:linear-gradient(135deg,var(--accent),#ff7a45);display:grid;place-items:center;font-weight:800}
+header h1{font-size:18px;margin:0}
+header small{color:var(--muted)}
+main{max-width:1180px;margin:0 auto;padding:24px 16px;display:grid;grid-template-columns:minmax(0,1.15fr) minmax(0,1fr);gap:20px}
+@media(max-width:900px){main{grid-template-columns:1fr}}
+.card{background:var(--panel);border:1px solid var(--line);border-radius:var(--radius);padding:18px}
+.card h2{font-size:15px;margin:0 0 12px;display:flex;align-items:center;gap:8px}
+.card h2 .n{width:22px;height:22px;border-radius:50%;background:var(--accent);font-size:12px;display:grid;place-items:center}
+textarea,input[type=text],select{width:100%;background:var(--panel2);border:1px solid var(--line);color:var(--text);border-radius:10px;padding:10px 12px;font:inherit}
+textarea{min-height:70px;resize:vertical}
+.row{display:flex;gap:10px;align-items:center;flex-wrap:wrap}
+.btn{border:0;border-radius:10px;padding:10px 16px;font:inherit;font-weight:600;cursor:pointer;background:var(--panel2);color:var(--text);border:1px solid var(--line)}
+.btn.primary{background:var(--accent);border-color:var(--accent);color:#fff}
+.btn.primary:disabled{opacity:.5;cursor:not-allowed}
+.btn.small{padding:6px 10px;font-size:13px}
+.muted{color:var(--muted);font-size:13px}
+.tabs{display:flex;gap:6px;margin-bottom:10px}
+.tab{padding:6px 12px;border-radius:999px;background:var(--panel2);border:1px solid var(--line);cursor:pointer;font-size:13px}
+.tab.on{background:var(--text);color:#111}
+.voices{display:grid;grid-template-columns:repeat(auto-fill,minmax(170px,1fr));gap:8px;max-height:330px;overflow:auto;padding-right:4px}
+.voice{position:relative;background:var(--panel2);border:2px solid transparent;border-radius:12px;padding:10px 36px 10px 48px;cursor:pointer;min-height:62px}
+.voice.on{border-color:var(--accent)}
+.voice .av{position:absolute;left:9px;top:12px;width:32px;height:32px;border-radius:50%;display:grid;place-items:center;font-size:16px}
+.voice .av.female{background:#ff5d8f33}.voice .av.male{background:#4f8cff33}
+.voice b{display:block;font-size:13.5px}
+.voice span{font-size:12px;color:var(--muted)}
+.voice .play{position:absolute;right:6px;top:50%;margin-top:-13px;width:26px;height:26px;border-radius:50%;border:0;background:#ffffff14;color:var(--text);cursor:pointer;font-size:11px}
+.voice .play.loading{opacity:.5}
+.voice .prov{display:block;font-size:10.5px;color:#6b7386;margin-top:2px}
+.opts{display:grid;grid-template-columns:1fr 1fr;gap:12px 16px}
+@media(max-width:560px){.opts{grid-template-columns:1fr}}
+.opt label{display:block;font-size:13px;color:var(--muted);margin-bottom:4px}
+.switch{display:flex;align-items:center;gap:8px;cursor:pointer;font-size:14px}
+.switch input{width:18px;height:18px;accent-color:var(--accent)}
+input[type=range]{width:100%;accent-color:var(--accent)}
+details{margin-top:12px}
+summary{cursor:pointer;color:var(--muted);font-size:13px}
+.colors{display:flex;gap:8px;align-items:center}
+input[type=color]{width:38px;height:30px;border:0;background:none;padding:0}
+.job{border:1px solid var(--line);border-radius:12px;padding:12px;margin-bottom:10px;background:var(--panel2)}
+.bar{height:8px;background:#ffffff12;border-radius:99px;overflow:hidden;margin:8px 0}
+.bar>i{display:block;height:100%;background:linear-gradient(90deg,var(--accent),#ff7a45);width:0;transition:width .4s}
+.status{font-size:12px;padding:2px 8px;border-radius:99px;background:#ffffff14}
+.status.done{background:#22c55e33;color:#7ee2a2}.status.error{background:#ef444433;color:#fca5a5}.status.running{background:#f4c71033;color:#f8de6b}
+.log{background:#0b0d11;border-radius:8px;padding:8px 10px;font:12px/1.5 ui-monospace,Consolas,monospace;max-height:180px;overflow:auto;white-space:pre-wrap;color:#b8c0d4;margin-top:8px}
+video{width:100%;border-radius:10px;background:#000;max-height:520px}
+.dbg{display:flex;gap:6px;overflow:auto;margin-top:8px}
+.dbg img{height:120px;border-radius:6px;cursor:zoom-in}
+.drop{border:1.5px dashed var(--line);border-radius:10px;padding:10px;text-align:center;color:var(--muted);font-size:13px;cursor:pointer}
+.drop.has{border-color:var(--accent2);color:var(--accent2)}
+.tr{max-height:200px;overflow:auto;font-size:13px;margin-top:8px}
+.tr div{padding:4px 0;border-bottom:1px solid var(--line)}
+.tr .zh{color:var(--muted)}
+.err{color:#fca5a5;font-size:13px;margin-top:6px}
+.subh{font-size:13px;font-weight:600;color:var(--muted);margin:14px 0 8px}
+.preview{border-radius:12px;min-height:130px;display:grid;place-items:center;padding:14px;margin-top:14px;
+ background:linear-gradient(135deg,#6b8f71,#c9a46b 55%,#7a6aa8)}
+.preview img{max-width:100%;max-height:200px}
+.pgrid{display:grid;grid-template-columns:repeat(auto-fill,minmax(112px,1fr));gap:8px}
+.pitem{border:2px solid transparent;border-radius:10px;background:#3b4a40;height:64px;display:grid;place-items:center;cursor:pointer;padding:4px;position:relative}
+.pitem img{max-width:100%;max-height:40px}
+.pitem span{position:absolute;bottom:1px;left:0;right:0;text-align:center;font-size:10px;color:#e6e6e6;text-shadow:0 1px 2px #000}
+.pitem.on,.fitem.on{border-color:var(--accent)}
+.fgrid{display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:8px;max-height:260px;overflow:auto}
+.fitem{border:2px solid transparent;border-radius:10px;background:var(--panel2);height:48px;display:grid;place-items:center;cursor:pointer;padding:4px 6px}
+.fitem img{max-width:100%;max-height:30px}
+.seg{display:flex;gap:6px;flex-wrap:wrap}
+.seg button{flex:1;min-width:110px;background:var(--panel2);border:2px solid var(--line);color:var(--text);border-radius:10px;padding:8px 10px;font:inherit;font-size:13.5px;cursor:pointer;display:flex;flex-direction:column;align-items:center;gap:2px}
+.seg button small{color:var(--muted);font-size:11px}
+.seg button.on{border-color:var(--accent);background:#ff2e4d1a}
+.seg input[type=color]{width:46px;height:22px}
+.note{font-size:12.5px;color:var(--muted);background:var(--panel2);border-radius:10px;padding:10px 12px;margin-top:12px;line-height:1.55}
+.cap{background:var(--panel2);border-radius:10px;padding:10px 12px;margin-top:8px}
+.cap h4{margin:0 0 6px;font-size:13px;display:flex;justify-content:space-between;align-items:center}
+.cap pre{white-space:pre-wrap;font:inherit;font-size:13.5px;margin:0}
+.cap ol{margin:0;padding-left:20px;font-size:13.5px}
+.cap li{padding:3px 0;cursor:pointer}
+.cap li:hover{color:var(--accent2)}
+.warn{color:#f8de6b;font-size:12.5px}
+header small .author,footer .author{color:var(--accent2)}
+footer{text-align:center;color:var(--muted);font-size:13px;padding:10px 16px 28px}
+#wmBox.off{opacity:.45}
+.wmwrap{display:flex;gap:16px;margin-top:12px;align-items:flex-start}
+@media(max-width:560px){.wmwrap{flex-direction:column;align-items:center}}
+.phone{position:relative;flex:none;width:162px;height:288px;border-radius:14px;overflow:hidden;
+ background:linear-gradient(160deg,#6b8f71,#c9a46b 55%,#7a6aa8);border:3px solid #2a2f3a}
+#sgX,#sgY{position:absolute;inset:0}
+#sgImg{position:absolute;display:block}
+@keyframes sgBreathe{0%,100%{opacity:1}50%{opacity:.35}}
+@keyframes sgMarq{from{left:100%}to{left:0;transform:translateX(-100%)}}
+@keyframes sgBx{from{left:0}to{left:100%;transform:translateX(-100%)}}
+@keyframes sgBy{from{top:0}to{top:100%;transform:translateY(-100%)}}
+@keyframes sgHop{0%,23%{left:6px;top:6px;transform:none;opacity:1}24%,25%{opacity:0}
+ 26%,48%{left:calc(100% - 6px);top:6px;transform:translateX(-100%);opacity:1}49%,50%{opacity:0}
+ 51%,73%{left:calc(100% - 6px);top:calc(100% - 6px);transform:translate(-100%,-100%);opacity:1}74%,75%{opacity:0}
+ 76%,98%{left:6px;top:calc(100% - 6px);transform:translateY(-100%);opacity:1}99%,100%{opacity:0}}
+@keyframes sgBlink{0%{opacity:0}6%,38%{opacity:1}44%,100%{opacity:0}}
+@keyframes sgPop{0%{scale:.3;opacity:0}4%{scale:1.15;opacity:1}6%,100%{scale:1}}
+.hook{border-top:1px solid var(--line);padding:8px 0}
+.hook .htext{font-size:14.5px;font-weight:600;margin:4px 0}
+.tag{font-size:11px;background:#f4c71026;color:var(--accent2);border-radius:99px;padding:2px 8px}
+.rv{border-top:1px solid var(--line);padding:10px 0}
+.rv.off{opacity:.5}
+.rvhead{display:flex;align-items:center;gap:8px;cursor:pointer}
+.rvhead input{width:18px;height:18px;accent-color:var(--accent)}
+.rv img{display:block;max-width:100%;max-height:120px;border-radius:6px;margin:6px 0}
+.rv .zh{color:var(--muted);font-size:13px;margin-bottom:4px}
+.tag.tscene{background:#ffffff14;color:#c9cfdc}
+.status.review{background:#4f8cff33;color:#9cc0ff}
+.colorpick{display:flex;align-items:center;justify-content:space-between;gap:8px}
+.rowsb{display:flex;justify-content:space-between;align-items:center;gap:8px}
+</style>
+</head>
+<body>
+<header>
+  <div class="logo">中→V</div>
+  <div><h1>Video chuyển đổi Tiếng Việt</h1>
+  <small>Được tạo bởi <b class="author">Ngô Thị Hồng Hạnh</b> · Lồng tiếng Việt · Dịch chữ trên hình · Xoá logo Xiaohongshu</small></div>
+  <button class="btn small" id="appSettings" style="margin-left:auto;display:none" title="Đổi link máy chủ">⚙ Máy chủ</button>
+</header>
+
+<main>
+<section>
+  <div class="card">
+    <h2><span class="n">1</span> Link video Xiaohongshu</h2>
+    <textarea id="link" placeholder="Dán link hoặc cả đoạn chia sẻ, ví dụ: http://xhslink.com/o/9UOi5v2AxW1"></textarea>
+    <div class="row" style="margin-top:8px">
+      <div class="drop" id="drop" style="flex:1">hoặc bấm để <b>tải file video</b> lên (khi link không tải được)</div>
+      <input type="file" id="file" accept="video/*" hidden>
+    </div>
+    <div class="row" style="margin-top:8px">
+      <button class="btn small" id="extDl">🌐 Link không tải được? Mở trang tải video (DLBunny) — link tự chép sẵn</button>
+    </div>
+    <details id="ckBox" style="margin-top:10px">
+      <summary>🔑 Cookie Xiaohongshu — dùng khi link báo "yêu cầu đăng nhập" · <span id="ckStatus">…</span></summary>
+      <div class="note" style="margin-top:8px">
+        Xiaohongshu bắt đăng nhập khi tải từ máy chủ nước ngoài (Colab). Cookie là "phiên đăng nhập" của tài khoản Xiaohongshu của bạn,
+        chỉ lưu trên máy chủ của bạn để tải video. Không chia sẻ cookie cho người khác.
+        <div id="ckApp" style="display:none;margin-top:8px"><button class="btn small" id="ckLogin" style="border-color:var(--accent2);color:var(--accent2)">📱 Đăng nhập Xiaohongshu ngay trong app</button>
+          <div class="muted" style="margin-top:4px">Đăng nhập bằng số điện thoại / mã SMS. Xong bấm nút <b>"✓ Đã đăng nhập"</b> ở cuối màn hình.</div></div>
+        <b>Cách lấy cookie trên máy tính (dễ nhất):</b>
+        <ol style="margin:4px 0;padding-left:18px">
+          <li>Mở Chrome trên máy tính, cài tiện ích <b>Cookie-Editor</b>.</li>
+          <li>Vào <b>xiaohongshu.com</b> → Đăng nhập → dùng app Xiaohongshu trên điện thoại <b>quét mã QR</b>.</li>
+          <li>Bấm biểu tượng Cookie-Editor → <b>Export → JSON</b> (tự chép).</li>
+          <li>Dán vào ô dưới đây → <b>Lưu cookie</b>.</li>
+        </ol>
+      </div>
+      <textarea id="ckText" placeholder="Dán cookie ở đây (chuỗi a1=...; web_session=... hoặc JSON xuất từ Cookie-Editor)" style="margin-top:8px"></textarea>
+      <div class="row" style="margin-top:8px"><button class="btn small primary" id="ckSave">Lưu cookie</button><button class="btn small" id="ckClear">Xoá cookie</button></div>
+    </details>
+  </div>
+
+  <div class="card" style="margin-top:16px">
+    <h2><span class="n">2</span> Chọn giọng đọc</h2>
+    <div class="tabs" id="tabs">
+      <div class="tab on" data-g="all">Tất cả</div><div class="tab" data-g="female">Nữ</div><div class="tab" data-g="male">Nam</div>
+    </div>
+    <div class="voices" id="voices"></div>
+    <div class="opts" style="margin-top:14px">
+      <div class="opt"><label>Tốc độ đọc: <b id="speedv">1.0x</b></label><input type="range" id="speed" min="0.8" max="1.3" step="0.05" value="1"></div>
+      <div class="opt"><label>Giữ âm thanh gốc / nhạc nền: <b id="bgv">0%</b></label><input type="range" id="bg_volume" min="0" max="0.6" step="0.05" value="0"></div>
+    </div>
+  </div>
+
+  <div class="card" style="margin-top:16px">
+    <h2><span class="n">3</span> Chữ trên hình & logo</h2>
+    <div class="opts">
+      <label class="switch"><input type="checkbox" id="replace_text" checked> Dịch chữ Trung trên hình sang tiếng Việt</label>
+      <label class="switch"><input type="checkbox" id="remove_logo" checked> Xoá logo / watermark Xiaohongshu</label>
+      <label class="switch"><input type="checkbox" id="trim_outro" checked> Cắt đoạn kết có logo Xiaohongshu</label>
+      <label class="switch"><input type="checkbox" id="burn_subs"> In phụ đề lời thoại ở đáy</label>
+    </div>
+    <div class="subh">Dịch những chữ nào?</div>
+    <div class="seg" id="scopeSeg">
+      <button data-v="overlay" class="on">Chỉ tiêu đề & phụ đề <small>bỏ qua chữ in trên thiết bị, dụng cụ, bao bì</small></button>
+      <button data-v="all">Tất cả chữ Trung <small>kể cả chữ trên đồ vật</small></button>
+    </div>
+    <label class="switch" style="margin-top:10px"><input type="checkbox" id="review_text"> Cho tôi xem & chọn từng đoạn chữ trước khi xuất video (sửa được bản dịch)</label>
+    <div id="styleBox">
+      <div class="preview" id="pvBox"><img id="pvImg" alt=""></div>
+      <input type="text" id="pvText" value="Siêu phẩm giá rẻ" placeholder="Gõ chữ để xem trước" style="margin-top:8px">
+      <div class="subh">Kích thước khung chữ</div>
+      <div class="seg" id="fitSeg">
+        <button data-v="fit" class="on">Vừa chữ gốc <small>không che hình</small></button>
+        <button data-v="large">To, dễ đọc <small>có thể che hình</small></button>
+      </div>
+      <div class="subh">Nền chữ</div>
+      <div class="seg" id="bgSeg">
+        <button data-v="preset" class="on">Theo kiểu chữ</button>
+        <button data-v="none">Không nền <small>chỉ hiện chữ</small></button>
+        <button data-v="color">Có nền màu <input type="color" id="bg_color" value="#F4C710"></button>
+      </div>
+      <div class="subh">Kiểu chữ</div>
+      <div class="pgrid" id="presets"></div>
+      <div class="subh rowsb">Phông chữ <label class="btn small" style="cursor:pointer">＋ Tải font của bạn<input type="file" id="fontUp" accept=".ttf,.otf" hidden></label></div>
+      <div class="fgrid" id="fonts"></div>
+      <div class="subh">Tuỳ chỉnh màu</div>
+      <div class="opts">
+        <div class="opt colorpick"><label class="switch"><input type="checkbox" data-c="text_color"> Màu chữ</label><input type="color" id="text_color" value="#FFFFFF"></div>
+        <div class="opt colorpick"><label class="switch"><input type="checkbox" data-c="stroke_color"> Màu viền</label><input type="color" id="stroke_color" value="#000000"></div>
+        <div class="opt"><label class="switch"><input type="checkbox" id="bgop_on"> Độ đậm nền: <b id="bgopv">100%</b></label><input type="range" id="bg_opacity" min="0" max="1" step="0.05" value="1"></div>
+      </div>
+    </div>
+    <details>
+      <summary>Tuỳ chọn nâng cao</summary>
+      <div class="opts" style="margin-top:10px">
+        <div class="opt"><label>Cỡ chữ Việt: <b id="fsv">0.8</b></label><input type="range" id="font_scale" min="0.5" max="1.2" step="0.05" value="0.8"></div>
+        <div class="opt"><label>Cách xoá chữ gốc</label><select id="cover_mode"><option value="box">Xoá cả khung (ổn định)</option><option value="mask">Chỉ xoá nét chữ</option><option value="solid">Tô màu nền phẳng</option></select></div>
+        <div class="opt"><label>Tần suất dò chữ (khung/giây): <b id="sfv">4</b></label><input type="range" id="sample_fps" min="2" max="10" step="1" value="4"></div>
+        <div class="opt"><label>Ngưỡng tin cậy OCR: <b id="ocv">0.3</b></label><input type="range" id="min_ocr_conf" min="0.1" max="0.8" step="0.05" value="0.3"></div>
+        <div class="opt"><label>Tăng tốc tối đa khi câu dài: <b id="msv">1.6x</b></label><input type="range" id="max_speedup" min="1" max="2" step="0.1" value="1.6"></div>
+        <div class="opt"><label>Công cụ dịch</label><select id="translator"><option value="auto">Tự động</option><option value="google">Google Translate</option><option value="claude">Claude (cần API key)</option></select></div>
+        <div class="opt" style="grid-column:1/-1"><label>Vùng luôn xoá (tỉ lệ 0–1: x1,y1,x2,y2; nhiều vùng ngăn bằng ;)</label>
+          <input type="text" id="manual_regions" placeholder="vd: 0.7,0,1,0.1"></div>
+      </div>
+    </details>
+  </div>
+
+  <div class="card" style="margin-top:16px">
+    <h2><span class="n">4</span> Nhạc nền</h2>
+    <div class="voices" id="tracks" style="max-height:240px"></div>
+    <div class="opts" style="margin-top:12px">
+      <div class="opt"><label>Âm lượng nhạc: <b id="mvv">25%</b></label><input type="range" id="music_volume" min="0.05" max="0.8" step="0.05" value="0.25"></div>
+      <label class="switch"><input type="checkbox" id="music_duck" checked> Tự giảm nhạc khi có giọng nói</label>
+    </div>
+    <div class="row" style="margin-top:10px">
+      <label class="switch" style="font-size:13px"><input type="checkbox" id="musicConfirm"> Tôi có quyền dùng bản nhạc tải lên cho mục đích thương mại</label>
+      <label class="btn small" style="cursor:pointer">＋ Tải nhạc của bạn<input type="file" id="musicUp" accept="audio/*" hidden></label>
+    </div>
+    <div class="note">🎵 Nhạc có sẵn do tool tự sáng tác bằng máy, <b>không có bản quyền của bên thứ ba</b>, dùng thương mại thoải mái.
+      Nhạc viral / xu hướng trên TikTok, Facebook đều có bản quyền: để dùng hợp lệ, hãy xuất video <b>không chèn nhạc</b> (hoặc nhạc nhỏ),
+      rồi chọn nhạc ngay trong app khi đăng: TikTok → <i>Thư viện âm nhạc thương mại</i> (tài khoản doanh nghiệp), Facebook/Instagram → <i>Thư viện âm thanh</i>.
+      Gắn nhạc trong app còn giúp video được đề xuất theo trend âm thanh. Nguồn nhạc tải về được phép dùng thương mại: Pixabay Music, YouTube Audio Library, Facebook Sound Collection.</div>
+  </div>
+
+  <div class="card" style="margin-top:16px">
+    <div class="rowsb"><h2 style="margin:0"><span class="n">5</span> Chữ ký bản quyền trên video</h2>
+      <label class="switch"><input type="checkbox" id="wm_enabled"> Chèn</label></div>
+    <div id="wmBox" class="off">
+      <div class="wmwrap">
+        <div class="phone" id="sgPhone"><div id="sgX"><div id="sgY"><img id="sgImg" alt=""></div></div></div>
+        <div style="flex:1;min-width:0">
+          <div class="opt"><label>Tên / chữ ký</label><input type="text" id="wm_text" maxlength="60" placeholder="@Ngô Thị Hồng Hạnh"></div>
+          <div class="opts" style="margin-top:10px">
+            <div class="opt"><label>Hiệu ứng</label><select id="wm_effect"></select></div>
+            <div class="opt"><label>Vị trí</label><select id="wm_position"></select></div>
+            <div class="opt"><label>Kiểu chữ</label><select id="wm_preset"></select></div>
+            <div class="opt"><label>Phông chữ</label><select id="wm_font"></select></div>
+            <div class="opt"><label>Cỡ chữ: <b id="wsv">4.5</b></label><input type="range" id="wm_size" min="0.02" max="0.08" step="0.005" value="0.045"></div>
+            <div class="opt"><label>Độ rõ: <b id="wov">85%</b></label><input type="range" id="wm_opacity" min="0.2" max="1" step="0.05" value="0.85"></div>
+            <div class="opt colorpick"><label class="switch"><input type="checkbox" id="wm_color_on"> Đổi màu chữ</label><input type="color" id="wm_color" value="#FFFFFF"></div>
+          </div>
+        </div>
+      </div>
+      <div class="note">Chữ ký hiện suốt video. Hiệu ứng <b>Trôi nảy</b> và <b>Đổi góc</b> giúp người khác khó cắt bỏ hoặc che tên của bạn khi đăng lại.</div>
+    </div>
+  </div>
+
+  <div class="card" style="margin-top:16px">
+    <h2><span class="n">6</span> Chất lượng video xuất</h2>
+    <div class="seg" id="qSeg">
+      <button data-v="max">Cao nhất <small>nét nhất, file lớn, xử lý lâu hơn</small></button>
+      <button data-v="high" class="on">Cao (khuyên dùng) <small>nét, dung lượng hợp lý</small></button>
+      <button data-v="fast">Nhanh <small>xử lý nhanh, file nhẹ</small></button>
+    </div>
+    <div class="opts" style="margin-top:12px">
+      <label class="switch"><input type="checkbox" id="upscale" checked> Nâng lên Full HD 1080p nếu video gốc nhỏ hơn</label>
+      <label class="switch"><input type="checkbox" id="loudnorm" checked> Chuẩn hoá âm thanh (-14 LUFS, stereo 48 kHz)</label>
+    </div>
+    <div class="note">Video xuất H.264 High Profile, giữ đúng tốc độ khung hình và màu của video gốc, âm thanh AAC 256 kbps —
+      đúng khuyến nghị đăng TikTok / Facebook Reels (dọc 1080×1920). Tool luôn tải bản có độ phân giải cao nhất từ Xiaohongshu.</div>
+  </div>
+
+  <div class="row" style="margin-top:16px">
+    <button class="btn primary" id="go" style="flex:1;padding:14px">🚀 Bắt đầu chuyển đổi</button>
+  </div>
+  <div class="err" id="err"></div>
+</section>
+
+<section style="display:flex;flex-direction:column;gap:16px">
+  <div class="card" id="current" style="display:none">
+    <div class="rowsb"><h2 style="margin:0">Đang xử lý</h2><span class="status" id="cstatus"></span></div>
+    <div class="muted" id="cinput" style="margin-top:4px;word-break:break-all"></div>
+    <div class="bar"><i id="cbar"></i></div>
+    <div class="rowsb"><span id="cstep"></span><b id="cpct"></b></div>
+    <div id="cresult"></div>
+    <div class="log" id="clog"></div>
+  </div>
+  <div class="card">
+    <div class="rowsb"><h2 style="margin:0">Lịch sử</h2><button class="btn small" id="refresh">Làm mới</button></div>
+    <div id="jobs" style="margin-top:12px"></div>
+  </div>
+</section>
+</main>
+<footer>© Phần mềm chuyển đổi video Tiếng Việt — được tạo bởi <b class="author">Ngô Thị Hồng Hạnh</b></footer>
+
+<script>
+const $ = s => document.querySelector(s);
+let textScope = "overlay", quality = "high", bgMode = "preset", fitMode = "fit", TRACKS = [], selMusic = "";
+let PRESETS = [], FONTS = [], selPreset = "yellow_box", selFont = "bevietnam", pvTimer = null;
+let VOICES = [], selVoice = "edge:hoaimy", gender = "all", currentId = null, timer = null, audio = new Audio();
+const esc = s => String(s ?? "").replace(/[&<>"']/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
+
+async function api(url, opt) {
+  const r = await fetch(url, opt);
+  if (!r.ok) { let m = r.statusText; try { m = (await r.json()).detail || m } catch {} throw new Error(m); }
+  return r.json();
+}
+
+function renderVoices() {
+  const box = $("#voices"); box.innerHTML = "";
+  VOICES.filter(v => gender === "all" || v.gender === gender).forEach(v => {
+    const el = document.createElement("div");
+    el.className = "voice" + (v.id === selVoice ? " on" : "");
+    el.innerHTML = `<div class="av ${v.gender}">${v.gender === "male" ? "👨" : "👩"}</div>
+      <b>${esc(v.name)}</b><span>${esc(v.desc)}</span><span class="prov">${esc(v.provider)}</span>
+      <button class="play" title="Nghe thử">▶</button>`;
+    el.onclick = () => { selVoice = v.id; renderVoices(); };
+    el.querySelector(".play").onclick = e => { e.stopPropagation(); playPreview(v.id, e.currentTarget); };
+    box.appendChild(el);
+  });
+}
+function playPreview(id, btn) {
+  audio.pause(); btn.classList.add("loading"); btn.textContent = "…";
+  audio = new Audio("/api/voices/preview?voice=" + encodeURIComponent(id));
+  audio.oncanplay = () => { btn.classList.remove("loading"); btn.textContent = "■"; };
+  audio.onended = audio.onpause = () => { btn.textContent = "▶"; };
+  audio.onerror = () => { btn.classList.remove("loading"); btn.textContent = "!"; };
+  audio.play().catch(() => {});
+}
+$("#tabs").onclick = e => {
+  const t = e.target.closest(".tab"); if (!t) return;
+  document.querySelectorAll(".tab").forEach(x => x.classList.toggle("on", x === t));
+  gender = t.dataset.g; renderVoices();
+};
+
+// thanh trượt
+const sliders = {speed:["#speedv",v=>v+"x"], bg_volume:["#bgv",v=>Math.round(v*100)+"%"], font_scale:["#fsv",v=>v],
+  sample_fps:["#sfv",v=>v], min_ocr_conf:["#ocv",v=>v], max_speedup:["#msv",v=>v+"x"]};
+for (const [id,[lab,f]] of Object.entries(sliders)) { const el = $("#"+id); el.oninput = () => $(lab).textContent = f(el.value); }
+
+// file
+$("#drop").onclick = () => $("#file").click();
+$("#file").onchange = () => {
+  const f = $("#file").files[0];
+  $("#drop").classList.toggle("has", !!f);
+  $("#drop").innerHTML = f ? `📎 ${esc(f.name)} (${(f.size/1e6).toFixed(1)} MB) — bấm để đổi` : "hoặc bấm để <b>tải file video</b> lên";
+};
+
+function collectOptions() {
+  const o = {voice: selVoice};
+  ["speed","bg_volume","font_scale","sample_fps","min_ocr_conf","max_speedup"].forEach(k => o[k] = parseFloat($("#"+k).value));
+  ["replace_text","remove_logo","trim_outro","burn_subs"].forEach(k => o[k] = $("#"+k).checked);
+  ["cover_mode","translator","manual_regions"].forEach(k => o[k] = $("#"+k).value);
+  Object.assign(o, wmParams());
+  o.text_scope = textScope; o.review_text = $("#review_text").checked;
+  o.quality = quality; o.upscale = $("#upscale").checked; o.loudnorm = $("#loudnorm").checked;
+  o.music = selMusic; o.music_volume = parseFloat($("#music_volume").value); o.music_duck = $("#music_duck").checked;
+  Object.assign(o, styleParams());
+  return o;
+}
+
+$("#go").onclick = async () => {
+  $("#err").textContent = "";
+  const link = $("#link").value.trim(), f = $("#file").files[0];
+  if (!link && !f) { $("#err").textContent = "Hãy dán link Xiaohongshu hoặc chọn file video."; return; }
+  const fd = new FormData();
+  fd.append("link", link); fd.append("options", JSON.stringify(collectOptions()));
+  if (f) fd.append("file", f);
+  $("#go").disabled = true; $("#go").textContent = f ? "Đang tải file lên…" : "Đang gửi…";
+  try {
+    const j = await api("/api/jobs", {method:"POST", body:fd});
+    watch(j.id); loadJobs();
+  } catch (e) { $("#err").textContent = e.message; }
+  $("#go").disabled = false; $("#go").textContent = "🚀 Bắt đầu chuyển đổi";
+};
+
+
+// ---------- Kiểu chữ & phông ----------
+function styleParams() {
+  const o = {text_preset: selPreset, font: selFont, text_color: "", bg_color: "", stroke_color: "", bg_opacity: -1,
+             bg_mode: bgMode, fit_mode: fitMode};
+  if (bgMode === "color") o.bg_color = $("#bg_color").value.toUpperCase();
+  document.querySelectorAll("[data-c]").forEach(cb => { if (cb.checked) o[cb.dataset.c] = $("#" + cb.dataset.c).value.toUpperCase(); });
+  if ($("#bgop_on").checked) o.bg_opacity = parseFloat($("#bg_opacity").value);
+  return o;
+}
+const qs = o => Object.entries(o).map(([k,v]) => k + "=" + encodeURIComponent(v)).join("&");
+function updatePreview() {
+  clearTimeout(pvTimer);
+  pvTimer = setTimeout(() => { $("#pvImg").src = "/api/text/preview?" + qs({...styleParams(), text: $("#pvText").value || "Chữ Việt", size: 72}); }, 150);
+}
+function renderPresets() {
+  const box = $("#presets"); box.innerHTML = "";
+  PRESETS.forEach(p => {
+    const el = document.createElement("div"); el.className = "pitem" + (p.id === selPreset ? " on" : "");
+    el.title = p.name;
+    el.innerHTML = `<img loading="lazy" src="/api/text/preview?${qs({preset:p.id, font:selFont, text:"Aa Việt", size:40})}"><span>${esc(p.name)}</span>`;
+    el.onclick = () => { selPreset = p.id; renderPresets(); updatePreview(); };
+    box.appendChild(el);
+  });
+}
+function renderFonts() {
+  const box = $("#fonts"); box.innerHTML = "";
+  FONTS.forEach(f => {
+    const el = document.createElement("div"); el.className = "fitem" + (f.id === selFont ? " on" : "");
+    el.title = f.name + " · " + f.group;
+    el.innerHTML = `<img loading="lazy" alt="${esc(f.name)}" src="/api/text/preview?${qs({preset:"plain_white", font:f.id, text:f.name, size:36})}">`;
+    el.onclick = () => { selFont = f.id; renderFonts(); renderPresets(); updatePreview(); };
+    box.appendChild(el);
+  });
+}
+$("#pvText").oninput = updatePreview;
+function segInit(id, cb) {
+  $(id).querySelectorAll("button").forEach(b => b.onclick = e => {
+    if (e.target.tagName === "INPUT") return;
+    $(id).querySelectorAll("button").forEach(x => x.classList.toggle("on", x === b)); cb(b.dataset.v); updatePreview();
+  });
+}
+segInit("#fitSeg", v => fitMode = v);
+segInit("#qSeg", v => quality = v);
+segInit("#scopeSeg", v => textScope = v);
+segInit("#bgSeg", v => bgMode = v);
+$("#bg_color").oninput = () => { bgMode = "color"; $("#bgSeg").querySelectorAll("button").forEach(x => x.classList.toggle("on", x.dataset.v === "color")); updatePreview(); };
+
+// ---------- Nhạc nền ----------
+let maudio = new Audio();
+function renderTracks() {
+  const box = $("#tracks"); box.innerHTML = "";
+  [{id:"", name:"Không chèn nhạc", desc:"Giữ nguyên, thêm nhạc trong app khi đăng"}, ...TRACKS].forEach(t => {
+    const el = document.createElement("div"); el.className = "voice" + (t.id === selMusic ? " on" : "");
+    el.innerHTML = `<div class="av" style="background:#ffffff14">${t.id ? (t.id.startsWith("custom:") ? "📁" : "🎵") : "🔇"}</div>
+      <b>${esc(t.name)}</b><span>${esc(t.desc)}</span>${t.id ? '<button class="play" title="Nghe thử">▶</button>' : ""}`;
+    el.onclick = () => { selMusic = t.id; renderTracks(); };
+    const pb = el.querySelector(".play");
+    if (pb) pb.onclick = e => {
+      e.stopPropagation(); maudio.pause(); pb.textContent = "…";
+      maudio = new Audio("/api/music/preview?id=" + encodeURIComponent(t.id)); maudio.volume = 0.7;
+      maudio.oncanplay = () => pb.textContent = "■"; maudio.onpause = maudio.onended = () => pb.textContent = "▶";
+      maudio.play().catch(() => {});
+    };
+    box.appendChild(el);
+  });
+}
+$("#music_volume").oninput = () => $("#mvv").textContent = Math.round($("#music_volume").value * 100) + "%";
+$("#musicUp").onchange = async () => {
+  const f = $("#musicUp").files[0]; if (!f) return;
+  if (!$("#musicConfirm").checked) { alert("Hãy tick xác nhận bạn có quyền sử dụng bản nhạc này."); $("#musicUp").value = ""; return; }
+  const fd = new FormData(); fd.append("file", f); fd.append("confirm", "1");
+  try { const r = await api("/api/music", {method:"POST", body:fd}); TRACKS = await api("/api/music"); selMusic = r.id; renderTracks(); }
+  catch (e) { alert(e.message); }
+  $("#musicUp").value = "";
+};
+
+// ---------- Chữ ký bản quyền ----------
+const WM_KEYS = ["wm_text","wm_effect","wm_position","wm_preset","wm_font","wm_size","wm_opacity","wm_color"];
+function wmParams() {
+  const o = {wm_enabled: $("#wm_enabled").checked};
+  WM_KEYS.forEach(k => o[k] = $("#"+k).value);
+  o.wm_size = parseFloat(o.wm_size); o.wm_opacity = parseFloat(o.wm_opacity);
+  o.wm_color = $("#wm_color_on").checked ? o.wm_color.toUpperCase() : "";
+  return o;
+}
+function wmPreview() {
+  const o = wmParams();
+  try { localStorage.setItem("wm", JSON.stringify({...o, wm_color_on: $("#wm_color_on").checked})); } catch {}
+  $("#wmBox").classList.toggle("off", !o.wm_enabled);
+  $("#wsv").textContent = (o.wm_size * 100).toFixed(1); $("#wov").textContent = Math.round(o.wm_opacity * 100) + "%";
+  const img = $("#sgImg"), X = $("#sgX"), Y = $("#sgY");
+  img.src = "/api/text/preview?" + qs({preset:o.wm_preset, font:o.wm_font, text:o.wm_text || "@Tên của bạn", size:48, text_color:o.wm_color});
+  img.style.height = Math.max(10, 162 * o.wm_size * 1.9) + "px";
+  img.style.opacity = o.wm_opacity;
+  [img, X, Y].forEach(el => { el.style.animation = ""; el.style.left = el.style.top = el.style.right = el.style.bottom = el.style.transform = ""; });
+  const m = "6px", pos = o.wm_position, e = o.wm_effect;
+  const place = p => {
+    const [v, h] = p === "center" ? ["center","center"] : p.split("-");
+    img.style.left = h === "left" ? m : h === "right" ? `calc(100% - ${m})` : "50%";
+    img.style.top = v === "top" ? m : v === "bottom" ? `calc(100% - ${m})` : "50%";
+    img.style.transform = `translate(${h === "left" ? 0 : h === "right" ? "-100%" : "-50%"}, ${v === "top" ? 0 : v === "bottom" ? "-100%" : "-50%"})`;
+  };
+  cancelAnimationFrame(window._sgRaf); img.style.translate = "";
+  if (e === "marquee") {
+    const row = pos.includes("-") ? pos.split("-")[0] : "center";
+    img.style.top = row === "top" ? m : row === "bottom" ? `calc(100% - ${m})` : "50%";
+    img.style.translate = row === "top" ? "0 0" : row === "bottom" ? "0 -100%" : "0 -50%";
+    img.style.animation = "sgMarq 7s linear infinite";
+  }
+  else if (e === "bounce") {
+    const box = $("#sgPhone"), t0 = performance.now();
+    const tri = (p, L) => L > 0 ? L - Math.abs((p % (2 * L)) - L) : 0;
+    const step = now => {
+      const t = (now - t0) / 1000, W = box.clientWidth, H = box.clientHeight;
+      img.style.left = tri(t * W * 0.11 + W * 0.3, W - img.offsetWidth) + "px";
+      img.style.top = tri(t * H * 0.07 + H * 0.6, H - img.offsetHeight) + "px";
+      window._sgRaf = requestAnimationFrame(step);
+    };
+    window._sgRaf = requestAnimationFrame(step);
+  }
+  else if (e === "hop") img.style.animation = "sgHop 20s linear infinite";
+  else { place(pos); if (e === "breathe") img.style.animation = "sgBreathe 3s ease-in-out infinite";
+    if (e === "blink") img.style.animation = "sgBlink 8s linear infinite"; if (e === "pop") img.style.animation = "sgPop 12s ease-out infinite"; }
+}
+async function wmInit() {
+  const so = await api("/api/signature/options");
+  const fill = (id, items) => $(id).innerHTML = items.map(([v, n]) => `<option value="${esc(v)}">${esc(n)}</option>`).join("");
+  fill("#wm_effect", Object.entries(so.effects)); fill("#wm_position", Object.entries(so.positions));
+  fill("#wm_preset", PRESETS.filter(p => p.id !== "original").map(p => [p.id, p.name]));
+  fill("#wm_font", FONTS.map(f => [f.id, f.name]));
+  $("#wm_position").value = "bottom-right"; $("#wm_preset").value = "shadow";
+  try { const s = JSON.parse(localStorage.getItem("wm") || "{}");
+    WM_KEYS.forEach(k => { if (s[k] !== undefined && s[k] !== "") $("#"+k).value = s[k]; });
+    $("#wm_enabled").checked = !!s.wm_enabled; $("#wm_color_on").checked = !!s.wm_color_on; } catch {}
+  ["wm_enabled","wm_color_on",...WM_KEYS].forEach(k => { $("#"+k).addEventListener("input", wmPreview); $("#"+k).addEventListener("change", wmPreview); });
+  $("#wm_text").addEventListener("input", () => { if ($("#wm_text").value.trim()) $("#wm_enabled").checked = true; });
+  wmPreview();
+}
+
+// ---------- Hook & hashtag ----------
+function copyText(t, btn) {
+  const done = () => { if (btn) { const o = btn.textContent; btn.textContent = "Đã chép ✓"; setTimeout(() => btn.textContent = o, 1200); } };
+  if (window.Android && Android.copy) { Android.copy(t); done(); return; }   // trong ứng dụng Android
+  navigator.clipboard?.writeText(t).then(done);
+}
+// ---------- Cookie Xiaohongshu ----------
+async function ckRefresh() {
+  try { const s = await api("/api/settings");
+    $("#ckStatus").innerHTML = s.has_cookie ? (s.logged_in ? '<span style="color:#7ee2a2">đã có cookie đăng nhập ✓</span>' : '<span style="color:#f8de6b">có cookie nhưng thiếu web_session</span>') : "chưa có"; } catch {}
+}
+async function ckSave(text) {
+  const fd = new FormData(); fd.append("cookie", text);
+  try { await api("/api/settings/xhs_cookie", {method:"POST", body:fd}); $("#ckText").value = ""; await ckRefresh(); alert(text ? "Đã lưu cookie" : "Đã xoá cookie"); }
+  catch (e) { alert(e.message); }
+}
+$("#ckSave").onclick = () => ckSave($("#ckText").value.trim());
+$("#extDl").onclick = () => {
+  const t = $("#link").value.trim(); const m = t.match(/https?:\/\/\S+/);
+  if (m) copyText(m[0]);
+  alert((m ? "Đã chép link video. " : "") + "Trên trang vừa mở: dán link → tải video về máy → quay lại đây bấm \"tải file video lên\".");
+  window.open("https://dlbunny.com/vi/xhs", "_blank");
+};
+$("#ckClear").onclick = () => ckSave("");
+if (window.Android && Android.loginXhs) { $("#ckApp").style.display = ""; $("#ckLogin").onclick = () => Android.loginXhs(); }
+ckRefresh();
+window.onXhsCookieSaved = () => { ckRefresh(); $("#ckBox").open = true; };
+
+// ---------- Ứng dụng Android ----------
+window.setLink = l => { $("#link").value = l; $("#link").scrollIntoView({behavior:"smooth", block:"center"});
+  $("#link").style.borderColor = "var(--accent2)"; setTimeout(() => $("#link").style.borderColor = "", 2000); };
+(() => {
+  const l = new URLSearchParams(location.search).get("link");
+  if (l) setTimeout(() => setLink(l), 300);
+  if (window.Android) { $("#appSettings").style.display = ""; $("#appSettings").onclick = () => Android.openSettings(); }
+})();
+function captionHtml(c) {
+  if (!c) return "";
+  const blk = (title, b) => `<div class="cap"><h4>${title}<button class="btn small" data-copy="${esc(b.full)}">Chép</button></h4><pre>${esc(b.full)}</pre></div>`;
+  const presetOpts = PRESETS.filter(p => p.id !== "original").map(p => `<option value="${p.id}">${esc(p.name)}</option>`).join("");
+  return `<div class="cap"><h4>Câu hook 3 giây đầu</h4>
+      <div class="opts" style="margin-bottom:8px">
+        <div class="opt"><label>Kiểu chữ hook</label><select id="hkPreset">${presetOpts}</select></div>
+        <div class="opt"><label>Vị trí / thời gian</label><div class="row" style="flex-wrap:nowrap">
+          <select id="hkPos"><option value="center">Giữa</option><option value="top">Trên</option><option value="lower">Dưới</option></select>
+          <select id="hkSec"><option value="2.5">2.5 giây</option><option value="3" selected>3 giây</option><option value="4">4 giây</option><option value="5">5 giây</option></select></div></div>
+      </div>
+      ${(c.hooks || []).map(h => `<div class="hook">
+        <div class="rowsb"><span class="tag">${esc(h.type || "Hook")}</span>
+          <span><button class="btn small" data-copy="${esc(h.text)}">Chép</button>
+          <button class="btn small" data-burn="${esc(h.overlay || h.text)}">🎬 Chèn vào video</button></span></div>
+        <div class="htext">${esc(h.text)}</div>
+        ${h.overlay && h.overlay !== h.text ? `<div class="muted">Chữ in lên video: “${esc(h.overlay)}”</div>` : ""}
+        ${h.why ? `<div class="muted">💡 ${esc(h.why)}</div>` : ""}
+        ${(h.warn || []).map(w => `<div class="warn">⚠ ${esc(w)}</div>`).join("")}
+      </div>`).join("")}</div>
+    ${blk("TikTok", c.tiktok)}${blk("Facebook", c.facebook)}
+    <div class="muted" style="margin-top:6px">Chủ đề: ${esc(c.topic || c.niche || "")} · Viết bởi: ${esc(c.engine || "")}</div>
+    ${(c.notes || []).map(n => `<div class="warn">• ${esc(n)}</div>`).join("")}`;
+}
+function hookResHtml(id, file, text) {
+  const f = `/api/jobs/${id}/files/${file}`;
+  return `<div class="cap"><h4>Video đã chèn hook <a class="btn primary small" href="${f}?download=1">⬇ Tải video có hook</a></h4>
+    <div class="muted">“${esc(text || "")}”</div><video controls src="${f}?v=${Date.now()}" style="margin-top:8px"></video></div>`;
+}
+async function burnHook(text, btn) {
+  const id = $("#caps").dataset.id, old = btn.textContent;
+  btn.disabled = true; btn.textContent = "Đang chèn…";
+  const fd = new FormData();
+  fd.append("text", text); fd.append("preset", $("#hkPreset").value); fd.append("font", selFont);
+  fd.append("position", $("#hkPos").value); fd.append("seconds", $("#hkSec").value);
+  try { const r = await api(`/api/jobs/${id}/hook`, {method:"POST", body:fd}); $("#hookRes").innerHTML = hookResHtml(id, r.file, r.text);
+        $("#hookRes").scrollIntoView({behavior:"smooth", block:"center"}); }
+  catch (e) { alert(e.message); }
+  btn.disabled = false; btn.textContent = old;
+}
+async function makeCaptions(id, btn) {
+  btn.disabled = true; btn.textContent = "Đang viết…";
+  const fd = new FormData(); fd.append("tone", $("#capTone").value); fd.append("trending", $("#capTrend").value);
+  try { const c = await api(`/api/jobs/${id}/captions`, {method:"POST", body:fd}); $("#caps").innerHTML = captionHtml(c); }
+  catch (e) { $("#caps").innerHTML = `<div class="err">${esc(e.message)}</div>`; }
+  btn.disabled = false; btn.textContent = "✨ Tạo lại hook & hashtag";
+}
+document.addEventListener("click", e => {
+  const c = e.target.closest("[data-copy]"); if (c) copyText(c.dataset.copy, c.tagName === "BUTTON" ? c : null);
+  const g = e.target.closest("#capBtn"); if (g) makeCaptions(g.dataset.id, g);
+  const k = e.target.closest("[data-burn]"); if (k) burnHook(k.dataset.burn, k);
+});
+document.querySelectorAll("[data-c]").forEach(cb => { cb.onchange = updatePreview; $("#" + cb.dataset.c).oninput = () => { cb.checked = true; updatePreview(); }; });
+$("#bgop_on").onchange = updatePreview;
+$("#bg_opacity").oninput = () => { $("#bgopv").textContent = Math.round($("#bg_opacity").value * 100) + "%"; $("#bgop_on").checked = true; updatePreview(); };
+$("#replace_text").onchange = () => $("#styleBox").style.opacity = $("#replace_text").checked ? 1 : .4;
+$("#fontUp").onchange = async () => {
+  const f = $("#fontUp").files[0]; if (!f) return;
+  const fd = new FormData(); fd.append("file", f);
+  try { const r = await api("/api/text/fonts", {method:"POST", body:fd}); FONTS = await api("/api/text/fonts"); selFont = r.id; renderFonts(); renderPresets(); updatePreview(); }
+  catch (e) { alert(e.message); }
+  $("#fontUp").value = "";
+};
+
+const STATUS = {queued:"Đang chờ", running:"Đang chạy", review:"Chờ bạn duyệt", done:"Hoàn tất", error:"Lỗi"};
+function reviewHtml(j) {
+  const f = n => `/api/jobs/${j.id}/files/${n}`;
+  const items = j.review || [];
+  return `<div class="cap" style="margin-top:10px" id="rvBox" data-id="${j.id}">
+    <h4>Chọn chữ cần dịch <span class="muted">${items.length} đoạn</span></h4>
+    <div class="muted">Tick = dịch & thay bằng chữ Việt · Bỏ tick = giữ nguyên chữ gốc (vd chữ trên máy móc, dụng cụ). Có thể sửa bản dịch trong ô.</div>
+    <div class="row" style="margin:8px 0">
+      <button class="btn small" data-rv="overlay">Chỉ tiêu đề & phụ đề</button>
+      <button class="btn small" data-rv="all">Chọn tất cả</button><button class="btn small" data-rv="none">Bỏ hết</button></div>
+    ${items.map(it => `<div class="rv ${it.checked ? "" : "off"}" data-kind="${esc(it.kind)}">
+      <label class="rvhead"><input type="checkbox" data-id="${it.id}" ${it.checked ? "checked" : ""}>
+        <span class="tag ${it.kind === "scene" ? "tscene" : ""}">${it.kind === "scene" ? "Chữ trên đồ vật/cảnh" : "Tiêu đề / phụ đề"}</span>
+        <span class="muted">${it.t0}s–${it.t1}s</span></label>
+      ${it.crop ? `<img src="${f(it.crop)}" alt="">` : ""}
+      <div class="zh">${esc(it.zh)}</div>
+      <input type="text" class="rvvi" data-id="${it.id}" value="${esc(it.vi)}" data-orig="${esc(it.vi)}">
+    </div>`).join("")}
+    <button class="btn primary" id="rvGo" style="width:100%;margin-top:10px;padding:12px">▶ Tiếp tục xuất video</button>
+  </div>`;
+}
+async function submitReview(btn) {
+  const box = $("#rvBox"), id = box.dataset.id;
+  const selected = [...box.querySelectorAll("input[type=checkbox][data-id]")].filter(c => c.checked).map(c => +c.dataset.id);
+  const edits = {};
+  box.querySelectorAll(".rvvi").forEach(i => { if (i.value.trim() !== i.dataset.orig) edits[i.dataset.id] = i.value.trim(); });
+  btn.disabled = true; btn.textContent = "Đang gửi…";
+  try { await api(`/api/jobs/${id}/review`, {method:"POST", headers:{"Content-Type":"application/json"}, body: JSON.stringify({selected, edits})});
+        btn.textContent = "Đã gửi, đang xuất video…"; }
+  catch (e) { alert(e.message); btn.disabled = false; btn.textContent = "▶ Tiếp tục xuất video"; }
+}
+document.addEventListener("click", e => {
+  const r = e.target.closest("[data-rv]");
+  if (r) $("#rvBox").querySelectorAll(".rv").forEach(card => {
+    const c = card.querySelector("input[type=checkbox]");
+    c.checked = r.dataset.rv === "all" || (r.dataset.rv === "overlay" && card.dataset.kind !== "scene");
+    card.classList.toggle("off", !c.checked);
+  });
+  if (e.target.id === "rvGo") submitReview(e.target);
+});
+document.addEventListener("change", e => {
+  if (e.target.matches("#rvBox input[type=checkbox]")) e.target.closest(".rv").classList.toggle("off", !e.target.checked);
+});
+
+function resultHtml(j) {
+  if (j.status === "error") return `<div class="err">${esc(j.error)}</div>`;
+  if (j.status === "review") return reviewHtml(j);
+  if (j.status !== "done") return "";
+  const f = n => `/api/jobs/${j.id}/files/${n}`;
+  let h = `<video controls src="${f(j.result)}" style="margin-top:10px"></video>
+    <div class="row" style="margin-top:8px"><a class="btn primary small" href="${f(j.result)}?download=1">⬇ Tải video</a>
+    <a class="btn small" href="${f(j.srt)}?download=1">⬇ Phụ đề .srt</a>
+</div>
+    <div class="cap" style="margin-top:10px">
+      <h4>✨ Hook & hashtag cho TikTok / Facebook</h4>
+      <div class="opts">
+        <div class="opt"><label>Giọng văn</label><select id="capTone">
+          <option value="gần gũi, tự nhiên">Gần gũi, tự nhiên</option><option value="vui nhộn, bắt trend">Vui nhộn, bắt trend</option>
+          <option value="chuyên gia, đáng tin">Chuyên gia, đáng tin</option><option value="cảm xúc, truyền cảm hứng">Truyền cảm hứng</option>
+          <option value="ngắn gọn, mạnh mẽ">Ngắn gọn, mạnh mẽ</option></select></div>
+        <div class="opt"><label>Hashtag xu hướng hôm nay (tuỳ chọn)</label><input type="text" id="capTrend" placeholder="#trend1 #trend2"></div>
+      </div>
+      <button class="btn small" id="capBtn" data-id="${j.id}" style="margin-top:10px;border-color:var(--accent2);color:var(--accent2)">✨ ${j.captions ? "Tạo lại" : "Tạo"} hook & hashtag</button>
+    </div>
+    <div id="hookRes">${j.hook_result ? hookResHtml(j.id, j.hook_result, j.hook_text) : ""}</div>
+    <div id="caps" data-id="${j.id}">${captionHtml(j.captions)}</div>`;
+  if (j.transcript?.length) h += `<details><summary>Lời thoại (${j.transcript.length} câu)</summary><div class="tr">${
+    j.transcript.map(t => `<div><span class="zh">${esc(t.zh)}</span><br>${esc(t.vi)}</div>`).join("")}</div></details>`;
+  if (j.screen_texts?.length) h += `<details><summary>Chữ trên hình (${j.screen_texts.length})</summary><div class="tr">${
+    j.screen_texts.map(t => `<div><span class="zh">${esc(t.zh)}</span><br>${esc(t.vi)}</div>`).join("")}</div></details>`;
+  if (j.debug_images?.length) h += `<details><summary>Ảnh kiểm tra (xanh = chữ đã dịch, vàng = chữ trên đồ vật giữ nguyên, đỏ = logo đã xoá)</summary><div class="dbg">${
+    j.debug_images.map(n => `<a href="${f(n)}" target="_blank"><img src="${f(n)}"></a>`).join("")}</div></details>`;
+  return h;
+}
+
+function watch(id) {
+  currentId = id; clearInterval(timer); $("#current").style.display = "";
+  let lastStatus = null;
+  const tick = async () => {
+    try {
+      const j = await api("/api/jobs/" + id);
+      $("#cstatus").textContent = STATUS[j.status] || j.status; $("#cstatus").className = "status " + j.status;
+      $("#cinput").textContent = j.title || j.input;
+      $("#cbar").style.width = (j.progress || 0) + "%"; $("#cpct").textContent = Math.round(j.progress || 0) + "%";
+      $("#cstep").textContent = j.step_label || "";
+      const lg = $("#clog"); lg.textContent = (j.logs || []).join("\n"); lg.scrollTop = lg.scrollHeight;
+      if (j.status !== lastStatus) { $("#cresult").innerHTML = resultHtml(j); lastStatus = j.status; }
+      if (j.status === "done" || j.status === "error") { clearInterval(timer); loadJobs(); }
+    } catch (e) { clearInterval(timer); }
+  };
+  tick(); timer = setInterval(tick, 2000);
+}
+
+async function loadJobs() {
+  const js = await api("/api/jobs");
+  $("#jobs").innerHTML = js.length ? "" : '<div class="muted">Chưa có video nào.</div>';
+  js.forEach(j => {
+    const d = document.createElement("div"); d.className = "job";
+    d.innerHTML = `<div class="rowsb"><b style="font-size:13px;word-break:break-all">${esc((j.title || j.input || "").slice(0,70))}</b>
+      <span class="status ${j.status}">${STATUS[j.status] || j.status}</span></div>
+      <div class="muted">${new Date(j.created*1000).toLocaleString("vi-VN")} · ${Math.round(j.progress||0)}%</div>
+      <div class="row" style="margin-top:6px"><button class="btn small" data-a="open">Xem</button>
+      ${j.status === "done" ? `<a class="btn small" href="/api/jobs/${j.id}/files/${j.result}?download=1">⬇ Video</a>` : ""}
+      ${["done","error"].includes(j.status) ? '<button class="btn small" data-a="del">Xoá</button>' : ""}</div>`;
+    d.querySelector('[data-a=open]').onclick = () => { watch(j.id); window.scrollTo({top:0, behavior:"smooth"}); };
+    const del = d.querySelector('[data-a=del]');
+    if (del) del.onclick = async () => { if (confirm("Xoá video này?")) { await api("/api/jobs/" + j.id, {method:"DELETE"}); loadJobs(); } };
+    $("#jobs").appendChild(d);
+  });
+  const running = js.find(j => j.status === "running" || j.status === "queued");
+  if (running && !currentId) watch(running.id);
+}
+$("#refresh").onclick = loadJobs;
+
+(async () => {
+  VOICES = await api("/api/voices"); renderVoices();
+  [PRESETS, FONTS] = await Promise.all([api("/api/text/presets"), api("/api/text/fonts")]);
+  renderPresets(); renderFonts(); updatePreview();
+  TRACKS = await api("/api/music"); renderTracks();
+  wmInit();
+  const cfg = await api("/api/config");
+  if (cfg.claude) $("#translator").value = "auto";
+  loadJobs();
+})();
+</script>
+</body>
+</html>

@@ -1,0 +1,15 @@
+services:
+  xhs2vi:
+    build: .
+    ports: ["8000:8000"]
+    env_file: .env
+    volumes:
+      - ./data:/data
+      - hf-cache:/root/.cache
+    # Bỏ comment nếu máy có GPU NVIDIA (cần nvidia-container-toolkit)
+    # deploy:
+    #   resources:
+    #     reservations:
+    #       devices: [{ driver: nvidia, count: 1, capabilities: [gpu] }]
+volumes:
+  hf-cache:

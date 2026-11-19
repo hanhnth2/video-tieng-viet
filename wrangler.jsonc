@@ -1,0 +1,10 @@
+{
+  "$schema": "node_modules/wrangler/config-schema.json",
+  // Cổng link cố định: web/app luôn dùng https://video-tieng-viet.<tài-khoản>.workers.dev
+  "name": "video-tieng-viet",
+  "main": "gateway/index.ts",
+  "compatibility_date": "2026-11-01",
+  "durable_objects": { "bindings": [{ "name": "BACKEND", "class_name": "Backend" }] },
+  "migrations": [{ "tag": "v1", "new_sqlite_classes": ["Backend"] }],
+  "observability": { "enabled": true }
+}
