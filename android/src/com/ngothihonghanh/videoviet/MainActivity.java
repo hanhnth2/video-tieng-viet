@@ -209,6 +209,7 @@ public class MainActivity extends Activity {
             return;
         }
         final String srv = server();
+        final String userAgent = web.getSettings().getUserAgentString();
         new Thread(new Runnable() {
             public void run() {
                 String msg;
@@ -219,6 +220,7 @@ public class MainActivity extends Activity {
                     c.setConnectTimeout(15000);
                     c.setReadTimeout(20000);
                     c.setRequestProperty("Content-Type", "application/x-www-form-urlencoded; charset=UTF-8");
+                    c.setRequestProperty("User-Agent", userAgent);   // tránh Cloudflare chặn (lỗi 1010)
                     String auth = CookieManager.getInstance().getCookie(srv);   // phiên đăng nhập mật khẩu của web
                     if (auth != null) c.setRequestProperty("Cookie", auth);
                     OutputStream os = c.getOutputStream();

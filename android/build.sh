@@ -14,7 +14,7 @@ aapt2 compile --dir res -o "$OUT/res/res.zip"
 
 echo "[2/6] Liên kết manifest + tài nguyên"
 aapt2 link -o "$OUT/base.apk" -I "$ANDROID_JAR" --manifest AndroidManifest.xml \
-  --min-sdk-version 24 --target-sdk-version 34 --version-code 3 --version-name 1.2 \
+  --min-sdk-version 24 --target-sdk-version 34 --version-code 4 --version-name 1.3 \
   -A assets --java "$OUT/gen" --auto-add-overlay "$OUT/res/res.zip"
 
 echo "[3/6] Biên dịch Java"
