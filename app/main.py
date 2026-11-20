@@ -157,7 +157,8 @@ async def submit_review(jid: str, request: Request):
     if not j or j.data.get("status") != "review":
         raise HTTPException(400, "Video không ở bước duyệt chữ")
     body = await request.json()
-    j.submit_review({"selected": body.get("selected", []), "edits": body.get("edits", {})})
+    j.submit_review({"selected": body.get("selected", []), "edits": body.get("edits", {}),
+                     "styles": body.get("styles", {})})
     return {"ok": True}
 
 

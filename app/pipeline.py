@@ -10,6 +10,18 @@ from .config import JobOptions
 from .downloader import download
 from .utils import AUDIO_ARGS, has_audio, probe_duration, run, video_encode_args, write_srt
 
+STYLE_KEYS = {"text_preset", "bg_mode", "bg_color", "text_color", "stroke_color", "bg_opacity", "font"}
+
+
+def track_opts(opts: JobOptions, override: dict | None) -> JobOptions:
+    """Tuỳ chọn riêng cho 1 đoạn chữ (màu nền, màu chữ, kiểu chữ...), các tuỳ chọn khác lấy theo cài đặt chung."""
+    if not override:
+        return opts
+    d = opts.to_dict()
+    d.update({k: v for k, v in override.items() if k in STYLE_KEYS and v is not None})
+    return JobOptions.from_dict(d)
+
+
 # (tên bước, % bắt đầu, % kết thúc)
 STEPS = {
     "download": ("Tải video", 0, 8),
@@ -118,11 +130,14 @@ def process(job, opts: JobOptions):
             job.log("  hết thời gian chờ duyệt → dùng lựa chọn tự động")
             decision = {"selected": [it["id"] for it in items if it["checked"]], "edits": {}}
         sel = {int(x) for x in decision.get("selected", [])}
+        styles = {int(k): v for k, v in (decision.get("styles") or {}).items() if isinstance(v, dict)}
         edits = {int(k): str(v).strip() for k, v in (decision.get("edits") or {}).items() if str(v).strip()}
         for i, tr in enumerate(cand):
             tr["skip"] = i not in sel
             if i in edits:
                 tr["vi"] = edits[i][:300]
+            if i in styles:
+                tr["style_override"] = styles[i]   # kiểu chữ / màu riêng cho đoạn này
         job.log(f"  đã duyệt: dịch {len(sel)}/{len(cand)} đoạn chữ")
         if opts.replace_text or opts.remove_logo:
             job.update(debug_images=onscreen.save_debug(src, info, job.dir))
@@ -145,7 +160,7 @@ def process(job, opts: JobOptions):
         onscreen.scale_info(info, min(2.5, 1080 / short))
         job.log(f"  nâng độ phân giải: {info['srcW']}x{info['srcH']} → {info['W']}x{info['H']}")
     for tr in text_tracks:
-        tr["sprite"] = onscreen.make_sprite(tr["vi"], tr, info["W"], opts)
+        tr["sprite"] = onscreen.make_sprite(tr["vi"], tr, info["W"], track_opts(opts, tr.get("style_override")))
     out = job.dir / "result.mp4"
     stage = work / "stage.mp4" if opts.burn_subs else out
     sig = signature.build(opts, info["W"], info["H"])

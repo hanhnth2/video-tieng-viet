@@ -141,6 +141,15 @@ video{width:100%;border-radius:10px;background:#000;max-height:560px;display:blo
 .rvhead input{width:18px;height:18px;accent-color:var(--accent)}
 .rv img{display:block;max-width:100%;max-height:120px;border-radius:6px;margin:6px 0}
 .rv .zh{color:var(--muted);font-size:13px;margin-bottom:4px}
+.rvall{background:var(--accent-soft);border-radius:10px;padding:10px 12px;margin-top:10px}
+.rvctl{display:flex;flex-wrap:wrap;gap:8px 12px;align-items:flex-end;margin-top:8px;font-size:12px;color:var(--muted)}
+.rvctl label{display:flex;flex-direction:column;gap:2px}
+.rvctl label.switch{flex-direction:row;align-items:center}
+.rvctl select{width:auto;padding:5px 8px;font-size:13px}
+.rvgrid{display:grid;grid-template-columns:1fr 1fr;gap:10px;align-items:center}
+@media(max-width:560px){.rvgrid{grid-template-columns:1fr}}
+.rvpvbox{border-radius:8px;min-height:70px;display:grid;place-items:center;padding:8px;background:linear-gradient(135deg,#6b8f71,#c9a46b 55%,#7a6aa8)}
+.rvpvbox img{max-width:100%;max-height:90px}
 /* chữ ký */
 #wmBox.off{opacity:.45}
 .wmwrap{display:flex;gap:16px;margin-top:12px;align-items:flex-start}
@@ -255,7 +264,7 @@ footer{text-align:center;color:var(--muted);font-size:13px;padding:4px 16px 28px
       <button data-v="overlay" class="on">Chỉ tiêu đề & phụ đề <small>bỏ qua chữ in trên thiết bị, dụng cụ, bao bì</small></button>
       <button data-v="all">Tất cả chữ Trung <small>kể cả chữ trên đồ vật</small></button>
     </div>
-    <label class="switch" style="margin-top:10px"><input type="checkbox" id="review_text"> Cho tôi xem & chọn từng đoạn chữ trước khi xuất video (sửa được bản dịch)</label>
+    <label class="switch" style="margin-top:10px"><input type="checkbox" id="review_text"> Cho tôi xem & chỉnh từng đoạn chữ trước khi xuất video (chọn chữ cần dịch, sửa bản dịch, màu nền / màu chữ riêng từng đoạn)</label>
     <div id="styleBox">
       <div class="preview" id="pvBox"><img id="pvImg" alt=""></div>
       <input type="text" id="pvText" value="Ngô Thị Hồng Hạnh" placeholder="Gõ chữ để xem trước" style="margin-top:8px">
@@ -716,47 +725,102 @@ $("#fontUp").onchange = async () => {
 };
 
 const STATUS = {queued:"Đang chờ", running:"Đang chạy", review:"Chờ bạn duyệt", done:"Hoàn tất", error:"Lỗi"};
+function rvStyleCtl(prefix, st) {
+  const presetOpts = PRESETS.filter(p => p.id !== "original").map(p => `<option value="${p.id}" ${p.id === st.text_preset ? "selected" : ""}>${esc(p.name)}</option>`).join("");
+  return `<div class="rvctl">
+    <label>Kiểu chữ<select class="${prefix}Preset">${presetOpts}</select></label>
+    <label>Nền<select class="${prefix}Bg">
+      <option value="preset" ${st.bg_mode === "preset" ? "selected" : ""}>Theo kiểu chữ</option>
+      <option value="none" ${st.bg_mode === "none" ? "selected" : ""}>Không nền</option>
+      <option value="color" ${st.bg_mode === "color" ? "selected" : ""}>Màu nền ▸</option></select></label>
+    <label title="Màu nền">Màu nền<input type="color" class="${prefix}BgColor" value="${st.bg_color || "#F4C710"}"></label>
+    <label class="switch" style="font-size:12px"><input type="checkbox" class="${prefix}FgOn" ${st.text_color ? "checked" : ""}> Màu chữ</label>
+    <input type="color" class="${prefix}Fg" value="${st.text_color || "#FFFFFF"}">
+  </div>`;
+}
+function rvReadCtl(root, prefix) {
+  const q = c => root.querySelector("." + prefix + c);
+  return {text_preset: q("Preset").value, bg_mode: q("Bg").value,
+          bg_color: q("Bg").value === "color" ? q("BgColor").value.toUpperCase() : "",
+          text_color: q("FgOn").checked ? q("Fg").value.toUpperCase() : ""};
+}
+function rvWriteCtl(root, prefix, st) {
+  const q = c => root.querySelector("." + prefix + c);
+  q("Preset").value = st.text_preset; q("Bg").value = st.bg_mode;
+  if (st.bg_color) q("BgColor").value = st.bg_color;
+  q("FgOn").checked = !!st.text_color; if (st.text_color) q("Fg").value = st.text_color;
+}
+function rvPreview(card) {
+  const st = rvReadCtl(card, "rv"), img = card.querySelector(".rvPv");
+  const text = card.querySelector(".rvvi").value || "Chữ Việt";
+  clearTimeout(card._t);
+  card._t = setTimeout(() => { img.src = "/api/text/preview?" + qs({preset: st.text_preset, font: selFont, text, size: 44,
+    bg_mode: st.bg_mode, bg_color: st.bg_color, text_color: st.text_color, fit_mode: fitMode}); }, 200);
+}
 function reviewHtml(j) {
   const f = n => `/api/jobs/${j.id}/files/${n}`;
   const items = j.review || [];
+  const g = styleParams();   // cài đặt chung đang chọn
+  const base = {text_preset: g.text_preset === "original" ? "yellow_box" : g.text_preset, bg_mode: g.bg_mode,
+                bg_color: g.bg_color, text_color: g.text_color};
   return `<div class="cap" style="margin-top:10px" id="rvBox" data-id="${j.id}">
-    <h4>Chọn chữ cần dịch <span class="muted">${items.length} đoạn</span></h4>
-    <div class="muted">Tick = dịch & thay bằng chữ Việt · Bỏ tick = giữ nguyên chữ gốc (vd chữ trên máy móc, dụng cụ). Có thể sửa bản dịch trong ô.</div>
+    <h4>Chọn & chỉnh từng đoạn chữ <span class="muted">${items.length} đoạn</span></h4>
+    <div class="muted">Tick = dịch & thay chữ Việt · Bỏ tick = giữ nguyên chữ gốc. Mỗi đoạn chỉnh được bản dịch, kiểu chữ, màu nền, màu chữ riêng.</div>
+    <div class="rvall">
+      <div class="label" style="margin-bottom:6px">🎨 Chỉnh cho tất cả đoạn (đổi ở đây là áp cho toàn video)</div>
+      ${rvStyleCtl("all", base)}
+    </div>
     <div class="row" style="margin:8px 0">
       <button class="btn small" data-rv="overlay">Chỉ tiêu đề & phụ đề</button>
       <button class="btn small" data-rv="all">Chọn tất cả</button><button class="btn small" data-rv="none">Bỏ hết</button></div>
-    ${items.map(it => `<div class="rv ${it.checked ? "" : "off"}" data-kind="${esc(it.kind)}">
+    ${items.map(it => `<div class="rv ${it.checked ? "" : "off"}" data-kind="${esc(it.kind)}" data-id="${it.id}">
       <label class="rvhead"><input type="checkbox" data-id="${it.id}" ${it.checked ? "checked" : ""}>
         <span class="tag ${it.kind === "scene" ? "tscene" : ""}">${it.kind === "scene" ? "Chữ trên đồ vật/cảnh" : "Tiêu đề / phụ đề"}</span>
         <span class="muted">${it.t0}s–${it.t1}s</span></label>
-      ${it.crop ? `<img src="${f(it.crop)}" alt="">` : ""}
-      <div class="zh">${esc(it.zh)}</div>
+      <div class="rvgrid">
+        <div>${it.crop ? `<img src="${f(it.crop)}" alt="">` : ""}<div class="zh">${esc(it.zh)}</div></div>
+        <div class="rvpvbox"><img class="rvPv" alt=""></div>
+      </div>
       <input type="text" class="rvvi" data-id="${it.id}" value="${esc(it.vi)}" data-orig="${esc(it.vi)}">
+      ${rvStyleCtl("rv", base)}
     </div>`).join("")}
-    <button class="btn primary" id="rvGo" style="width:100%;margin-top:10px;padding:12px">▶ Tiếp tục xuất video</button>
+    <button class="btn primary big" id="rvGo" style="margin-top:10px">▶ Tiếp tục xuất video</button>
   </div>`;
+}
+function rvInit() {
+  const box = $("#rvBox"); if (!box) return;
+  box.querySelectorAll(".rv").forEach(rvPreview);
+  // ô "cho tất cả": đổi là áp cho mọi đoạn
+  box.querySelector(".rvall").addEventListener("input", () => {
+    const st = rvReadCtl(box.querySelector(".rvall"), "all");
+    box.querySelectorAll(".rv").forEach(card => { rvWriteCtl(card, "rv", st); rvPreview(card); });
+  });
+  box.querySelectorAll(".rv").forEach(card => card.addEventListener("input", e => {
+    if (!e.target.matches("input[type=checkbox][data-id]")) rvPreview(card);
+  }));
 }
 async function submitReview(btn) {
   const box = $("#rvBox"), id = box.dataset.id;
   const selected = [...box.querySelectorAll("input[type=checkbox][data-id]")].filter(c => c.checked).map(c => +c.dataset.id);
-  const edits = {};
+  const edits = {}, styles = {};
   box.querySelectorAll(".rvvi").forEach(i => { if (i.value.trim() !== i.dataset.orig) edits[i.dataset.id] = i.value.trim(); });
+  box.querySelectorAll(".rv").forEach(card => { styles[card.dataset.id] = rvReadCtl(card, "rv"); });
   btn.disabled = true; btn.textContent = "Đang gửi…";
-  try { await api(`/api/jobs/${id}/review`, {method:"POST", headers:{"Content-Type":"application/json"}, body: JSON.stringify({selected, edits})});
+  try { await api(`/api/jobs/${id}/review`, {method:"POST", headers:{"Content-Type":"application/json"}, body: JSON.stringify({selected, edits, styles})});
         btn.textContent = "Đã gửi, đang xuất video…"; }
   catch (e) { alert(e.message); btn.disabled = false; btn.textContent = "▶ Tiếp tục xuất video"; }
 }
 document.addEventListener("click", e => {
   const r = e.target.closest("[data-rv]");
   if (r) $("#rvBox").querySelectorAll(".rv").forEach(card => {
-    const c = card.querySelector("input[type=checkbox]");
+    const c = card.querySelector("input[type=checkbox][data-id]");
     c.checked = r.dataset.rv === "all" || (r.dataset.rv === "overlay" && card.dataset.kind !== "scene");
     card.classList.toggle("off", !c.checked);
   });
   if (e.target.id === "rvGo") submitReview(e.target);
 });
 document.addEventListener("change", e => {
-  if (e.target.matches("#rvBox input[type=checkbox]")) e.target.closest(".rv").classList.toggle("off", !e.target.checked);
+  if (e.target.matches("#rvBox input[type=checkbox][data-id]")) e.target.closest(".rv").classList.toggle("off", !e.target.checked);
 });
 
 function resultHtml(j) {
@@ -802,7 +866,7 @@ function watch(id) {
       $("#cbar").style.width = (j.progress || 0) + "%"; $("#cpct").textContent = Math.round(j.progress || 0) + "%";
       $("#cstep").textContent = j.step_label || "";
       const lg = $("#clog"); lg.textContent = (j.logs || []).join("\n"); lg.scrollTop = lg.scrollHeight;
-      if (j.status !== lastStatus) { $("#cresult").innerHTML = resultHtml(j); lastStatus = j.status; capInit(); }
+      if (j.status !== lastStatus) { $("#cresult").innerHTML = resultHtml(j); lastStatus = j.status; capInit(); rvInit(); }
       if (j.status === "done" || j.status === "error") { clearInterval(timer); loadJobs(); }
     } catch (e) { clearInterval(timer); }
   };
