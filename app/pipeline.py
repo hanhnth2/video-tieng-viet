@@ -196,6 +196,7 @@ def render_output(job, info, opts, src, dub_wav, end_t, work, log):
              f"subtitles=subs.srt:force_style='{style}'", *video_encode_args(opts.quality, info.get("color", "bt709")),
              "-c:a", "copy", tmp_out.resolve()], cwd=work)
     tmp_out.replace(out)
+    job.update(result_size=out.stat().st_size)
     for tr in text_tracks:
         tr.pop("sprite", None)
     for tr in info["tracks"]:

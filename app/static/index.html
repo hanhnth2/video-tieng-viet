@@ -844,9 +844,10 @@ function resultHtml(j) {
   const f = n => `/api/jobs/${j.id}/files/${n}`;
   let h = `${j.rerender_error ? `<div class="err">Xuất lại lỗi: ${esc(j.rerender_error)}</div>` : ""}
     <video controls src="${f(j.result)}?v=${esc(String(j.updated || ""))}" style="margin-top:10px"></video>
-    <div class="row" style="margin-top:8px"><a class="btn primary small" href="${f(j.result)}?download=1">⬇ Tải video</a>
+    <div class="row" style="margin-top:8px"><a class="btn primary small" href="${f(j.result)}?download=1">⬇ Tải video${j.result_size ? ` (${(j.result_size / 1048576).toFixed(1)} MB)` : ""}</a>
     <a class="btn small" href="${f(j.srt)}?download=1">⬇ Phụ đề .srt</a>
 </div>
+    <div class="muted" style="margin-top:6px">Hãy tải bằng nút <b>⬇ Tải video</b> (không dùng menu tải của khung phát video). Tải xong, kiểm tra dung lượng file đúng như số MB ghi trên nút; nhỏ hơn là bị đứt mạng giữa chừng, bấm tải lại.</div>
     <div class="cap" style="margin-top:10px">
       <h4>✨ Viết nội dung đăng TikTok / Facebook (hook + caption ngắn + hashtag)</h4>
       <div class="opts">

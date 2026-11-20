@@ -44,7 +44,7 @@ def write_srt(path, cues):
 QUALITY = {
     # crf càng thấp càng nét (file to hơn); preset càng chậm nén càng hiệu quả
     "max": ("14", "slow"),
-    "high": ("16", "medium"),   # gần như không khác "slow" về hình, nhanh hơn rõ rệt trên Colab
+    "high": ("18", "medium"),   # mắt thường gần như không khác crf 16, file nhẹ hơn ~40% -> tải về nhanh, ít bị đứt
     "fast": ("20", "veryfast"),
 }
 

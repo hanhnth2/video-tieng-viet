@@ -38,7 +38,7 @@ STATIC = Path(__file__).resolve().parent / "static"
 SAFE_NAME = re.compile(r"^[\w.\-]+$")
 
 PUBLIC_FIELDS = ("id", "status", "input", "title", "progress", "step", "step_label", "created", "duration",
-                 "error", "result", "srt", "debug_images", "transcript", "screen_texts", "options", "captions", "hook_result", "hook_text", "review", "screen_items", "rerender_error", "updated",
+                 "error", "result", "srt", "debug_images", "transcript", "screen_texts", "options", "captions", "hook_result", "hook_text", "review", "screen_items", "rerender_error", "updated", "result_size",
                  "video_source")
 
 
