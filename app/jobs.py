@@ -99,6 +99,26 @@ class JobManager:
             job.log("❌ " + str(e)[:500])
             job.update(status="error", error=str(e)[:1000], finished=time.time())
 
+    def rerender(self, jid: str, decision: dict) -> bool:
+        j = self.jobs.get(jid)
+        if not j or j.data.get("status") != "done" or not (j.dir / "render_state.pkl").exists():
+            return False
+        j.update(status="queued", step_label="Chờ xuất lại", rerender_error=None)
+        self.pool.submit(self._rerun, j, decision)
+        return True
+
+    def _rerun(self, job: Job, decision: dict):
+        from .pipeline import rerender
+        try:
+            rerender(job, decision)
+            job.log("✅ Đã xuất lại xong!")
+            job.update(status="done", finished=time.time())
+        except Exception as e:  # noqa: BLE001
+            traceback.print_exc()
+            job.log("❌ Xuất lại lỗi: " + str(e)[:300])
+            # video cũ vẫn còn nguyên -> giữ trạng thái hoàn tất, báo lỗi xuất lại
+            job.update(status="done", progress=100, rerender_error=str(e)[:500])
+
     def get(self, jid: str) -> Job | None:
         return self.jobs.get(jid)
 

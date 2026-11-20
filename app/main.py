@@ -38,7 +38,7 @@ STATIC = Path(__file__).resolve().parent / "static"
 SAFE_NAME = re.compile(r"^[\w.\-]+$")
 
 PUBLIC_FIELDS = ("id", "status", "input", "title", "progress", "step", "step_label", "created", "duration",
-                 "error", "result", "srt", "debug_images", "transcript", "screen_texts", "options", "captions", "hook_result", "hook_text", "review",
+                 "error", "result", "srt", "debug_images", "transcript", "screen_texts", "options", "captions", "hook_result", "hook_text", "review", "screen_items", "rerender_error", "updated",
                  "video_source")
 
 
@@ -159,6 +159,15 @@ async def submit_review(jid: str, request: Request):
     body = await request.json()
     j.submit_review({"selected": body.get("selected", []), "edits": body.get("edits", {}),
                      "styles": body.get("styles", {})})
+    return {"ok": True}
+
+
+@app.post("/api/jobs/{jid}/rerender")
+async def rerender_job(jid: str, request: Request):
+    body = await request.json()
+    if not manager.rerender(jid, {"selected": body.get("selected", []), "edits": body.get("edits", {}),
+                                  "styles": body.get("styles", {})}):
+        raise HTTPException(400, "Video này chưa xuất xong hoặc được làm bằng phiên bản cũ (không chỉnh lại được). Hãy chuyển đổi lại.")
     return {"ok": True}
 
 

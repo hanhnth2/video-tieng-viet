@@ -159,26 +159,109 @@ def process(job, opts: JobOptions):
     if opts.upscale and 0 < short < 1080:
         onscreen.scale_info(info, min(2.5, 1080 / short))
         job.log(f"  nâng độ phân giải: {info['srcW']}x{info['srcH']} → {info['W']}x{info['H']}")
+    # lưu lại để "chỉnh từng dòng chữ & xuất lại" mà không phải xử lý lại từ đầu
+    if not (job.dir / "crops").exists() and cand:
+        onscreen.save_crops(src, cand, job.dir / "crops")
+    shutil.copy(dub_wav, job.dir / "dub.wav")
+    save_state(job, info, cand, end_t)
+    render_output(job, info, opts, src, job.dir / "dub.wav", end_t, work, sub("render"))
+
+    step("finish")
+    shutil.rmtree(work, ignore_errors=True)
+    job.update(progress=100, result="result.mp4", srt="result.srt", screen_items=screen_items(job, cand))
+
+
+def render_output(job, info, opts, src, dub_wav, end_t, work, log):
+    """Vẽ chữ Việt + chữ ký lên video và xuất file result.mp4 (dùng cho cả lần đầu và khi xuất lại)."""
+    text_tracks = [t for t in info["tracks"] if not t["wm"] and not t.get("absorbed") and not t.get("skip")]
     for tr in text_tracks:
         tr["sprite"] = onscreen.make_sprite(tr["vi"], tr, info["W"], track_opts(opts, tr.get("style_override")))
     out = job.dir / "result.mp4"
-    stage = work / "stage.mp4" if opts.burn_subs else out
+    tmp_out = job.dir / "result.tmp.mp4"
+    stage = work / "stage.mp4" if opts.burn_subs else tmp_out
     sig = signature.build(opts, info["W"], info["H"])
     if sig:
         job.log(f"  chèn chữ ký: {opts.wm_text} ({signature.EFFECTS[sig.effect]})")
     if info["tracks"] or info["regions"] or sig or info.get("scale", 1.0) != 1.0:
-        onscreen.render(src, dub_wav, info, opts, stage, log=sub("render"), signature=sig)
+        onscreen.render(src, dub_wav, info, opts, stage, log=log, signature=sig)
     else:
         run(["ffmpeg", "-y", "-loglevel", "error", "-i", src, "-i", dub_wav, "-map", "0:v:0", "-map", "1:a:0",
              "-t", f"{end_t:.3f}", *video_encode_args(opts.quality, info.get("color", "bt709")), *AUDIO_ARGS,
              "-shortest", stage])
     if opts.burn_subs:
+        shutil.copy(job.dir / "result.srt", work / "subs.srt")
         style = ("FontName=Noto Sans,FontSize=16,PrimaryColour=&H00FFFFFF,BackColour=&H99000000,"
                  "BorderStyle=3,Outline=1,Alignment=2,MarginV=24")
         run(["ffmpeg", "-y", "-loglevel", "error", "-i", stage.name, "-vf",
              f"subtitles=subs.srt:force_style='{style}'", *video_encode_args(opts.quality, info.get("color", "bt709")),
-             "-c:a", "copy", out.resolve()], cwd=work)
+             "-c:a", "copy", tmp_out.resolve()], cwd=work)
+    tmp_out.replace(out)
+    for tr in text_tracks:
+        tr.pop("sprite", None)
+    for tr in info["tracks"]:
+        tr.pop("_cache", None)
 
-    step("finish")
-    shutil.rmtree(work, ignore_errors=True)
-    job.update(progress=100, result="result.mp4", srt="result.srt")
+
+# ---------------- lưu / chỉnh lại sau khi xuất ----------------
+def save_state(job, info, cand, end_t):
+    import pickle
+    clean = dict(info)
+    clean["tracks"] = [{k: v for k, v in tr.items() if k not in ("sprite", "_cache")} for tr in info["tracks"]]
+    ids = [info["tracks"].index(t) for t in cand]
+    with open(job.dir / "render_state.pkl", "wb") as f:
+        pickle.dump({"info": clean, "cand": ids, "end_t": end_t}, f)
+
+
+def screen_items(job, cand):
+    items = []
+    for i, tr in enumerate(cand):
+        crop = f"crops/c{i}.jpg"
+        items.append({"id": i, "zh": tr["text"], "vi": tr.get("vi", ""), "kind": tr.get("kind"),
+                      "checked": not tr.get("skip"), "style": tr.get("style_override") or {},
+                      "crop": crop if (job.dir / crop).exists() else None,
+                      "t0": round(tr["t0"], 1), "t1": round(tr["t1"], 1)})
+    return items
+
+
+def rerender(job, decision: dict):
+    """Chỉnh từng dòng chữ (bản dịch, phông, nền, màu) rồi xuất lại – dùng lại kết quả dò chữ, dịch, lồng tiếng."""
+    import pickle
+    from . import speech
+    t0 = time.time()
+    with open(job.dir / "render_state.pkl", "rb") as f:
+        st = pickle.load(f)
+    info = st["info"]
+    cand = [info["tracks"][i] for i in st["cand"]]
+    opts = JobOptions.from_dict(job.data.get("options") or {})
+    sel = {int(x) for x in decision.get("selected", [])}
+    edits = {int(k): str(v).strip() for k, v in (decision.get("edits") or {}).items() if str(v).strip()}
+    styles = {int(k): v for k, v in (decision.get("styles") or {}).items() if isinstance(v, dict)}
+    need_tr = [tr for i, tr in enumerate(cand) if i in sel and not tr.get("vi") and i not in edits]
+    if need_tr:   # dòng trước đây không dịch (chữ trên đồ vật) nay được chọn -> dịch thêm
+        vis = speech.translate([t["text"] for t in need_tr], opts.translator)
+        for tr, v in zip(need_tr, vis):
+            tr["vi"] = v
+    for i, tr in enumerate(cand):
+        tr["skip"] = i not in sel
+        if i in edits:
+            tr["vi"] = edits[i][:300]
+        if i in styles:
+            tr["style_override"] = styles[i]
+    job.update(status="running", step="render", step_label="Xuất lại video với chữ đã chỉnh", progress=70,
+               hook_result=None)
+    job.log("▶ Xuất lại video với chữ đã chỉnh")
+    work = job.dir / "work_rerender"
+    work.mkdir(exist_ok=True)
+    try:
+        def _log(msg, progress=None):
+            job.log(msg)
+            if progress is not None:
+                job.update(progress=round(70 + 28 * min(1.0, progress), 1))
+        render_output(job, info, opts, job.dir / "source.mp4", job.dir / "dub.wav", st["end_t"], work, _log)
+    finally:
+        shutil.rmtree(work, ignore_errors=True)
+    with open(job.dir / "render_state.pkl", "wb") as f:
+        pickle.dump(st, f)
+    job.log(f"  ⏱ Xuất lại: {time.time() - t0:.0f} giây")
+    job.update(progress=100, screen_items=screen_items(job, cand),
+               screen_texts=[{"zh": t["text"], "vi": t["vi"]} for t in cand if not t.get("skip")])

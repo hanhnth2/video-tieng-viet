@@ -729,6 +729,7 @@ function rvStyleCtl(prefix, st) {
   const presetOpts = PRESETS.filter(p => p.id !== "original").map(p => `<option value="${p.id}" ${p.id === st.text_preset ? "selected" : ""}>${esc(p.name)}</option>`).join("");
   return `<div class="rvctl">
     <label>Kiểu chữ<select class="${prefix}Preset">${presetOpts}</select></label>
+    <label>Phông chữ<select class="${prefix}Font">${FONTS.map(f => `<option value="${esc(f.id)}" ${f.id === st.font ? "selected" : ""}>${esc(f.name)}</option>`).join("")}</select></label>
     <label>Nền<select class="${prefix}Bg">
       <option value="preset" ${st.bg_mode === "preset" ? "selected" : ""}>Theo kiểu chữ</option>
       <option value="none" ${st.bg_mode === "none" ? "selected" : ""}>Không nền</option>
@@ -740,13 +741,13 @@ function rvStyleCtl(prefix, st) {
 }
 function rvReadCtl(root, prefix) {
   const q = c => root.querySelector("." + prefix + c);
-  return {text_preset: q("Preset").value, bg_mode: q("Bg").value,
+  return {text_preset: q("Preset").value, font: q("Font").value, bg_mode: q("Bg").value,
           bg_color: q("Bg").value === "color" ? q("BgColor").value.toUpperCase() : "",
           text_color: q("FgOn").checked ? q("Fg").value.toUpperCase() : ""};
 }
 function rvWriteCtl(root, prefix, st) {
   const q = c => root.querySelector("." + prefix + c);
-  q("Preset").value = st.text_preset; q("Bg").value = st.bg_mode;
+  q("Preset").value = st.text_preset; q("Bg").value = st.bg_mode; if (st.font) q("Font").value = st.font;
   if (st.bg_color) q("BgColor").value = st.bg_color;
   q("FgOn").checked = !!st.text_color; if (st.text_color) q("Fg").value = st.text_color;
 }
@@ -754,17 +755,23 @@ function rvPreview(card) {
   const st = rvReadCtl(card, "rv"), img = card.querySelector(".rvPv");
   const text = card.querySelector(".rvvi").value || "Chữ Việt";
   clearTimeout(card._t);
-  card._t = setTimeout(() => { img.src = "/api/text/preview?" + qs({preset: st.text_preset, font: selFont, text, size: 44,
+  card._t = setTimeout(() => { img.src = "/api/text/preview?" + qs({preset: st.text_preset, font: st.font || selFont, text, size: 44,
     bg_mode: st.bg_mode, bg_color: st.bg_color, text_color: st.text_color, fit_mode: fitMode}); }, 200);
 }
-function reviewHtml(j) {
+function reviewHtml(j, mode) {
   const f = n => `/api/jobs/${j.id}/files/${n}`;
-  const items = j.review || [];
+  const again = mode === "rerender";
+  const items = (again ? j.screen_items : j.review) || [];
   const g = styleParams();   // cài đặt chung đang chọn
   const base = {text_preset: g.text_preset === "original" ? "yellow_box" : g.text_preset, bg_mode: g.bg_mode,
-                bg_color: g.bg_color, text_color: g.text_color};
-  return `<div class="cap" style="margin-top:10px" id="rvBox" data-id="${j.id}">
-    <h4>Chọn & chỉnh từng đoạn chữ <span class="muted">${items.length} đoạn</span></h4>
+                bg_color: g.bg_color, text_color: g.text_color, font: g.font};
+  if (again) {   // lấy kiểu chung đã dùng khi xuất video
+    const o = j.options || {};
+    Object.assign(base, {text_preset: (o.text_preset && o.text_preset !== "original") ? o.text_preset : base.text_preset,
+      bg_mode: o.bg_mode || base.bg_mode, bg_color: o.bg_color || "", text_color: o.text_color || "", font: o.font || base.font});
+  }
+  return `<div class="cap" style="margin-top:10px" id="rvBox" data-id="${j.id}" data-mode="${again ? "rerender" : "review"}">
+    <h4>${again ? "Chỉnh từng dòng chữ & xuất lại" : "Chọn & chỉnh từng đoạn chữ"} <span class="muted">${items.length} dòng</span></h4>
     <div class="muted">Tick = dịch & thay chữ Việt · Bỏ tick = giữ nguyên chữ gốc. Mỗi đoạn chỉnh được bản dịch, kiểu chữ, màu nền, màu chữ riêng.</div>
     <div class="rvall">
       <div class="label" style="margin-bottom:6px">🎨 Chỉnh cho tất cả đoạn (đổi ở đây là áp cho toàn video)</div>
@@ -781,10 +788,10 @@ function reviewHtml(j) {
         <div>${it.crop ? `<img src="${f(it.crop)}" alt="">` : ""}<div class="zh">${esc(it.zh)}</div></div>
         <div class="rvpvbox"><img class="rvPv" alt=""></div>
       </div>
-      <input type="text" class="rvvi" data-id="${it.id}" value="${esc(it.vi)}" data-orig="${esc(it.vi)}">
-      ${rvStyleCtl("rv", base)}
+      <input type="text" class="rvvi" data-id="${it.id}" value="${esc(it.vi || "")}" data-orig="${esc(it.vi || "")}" placeholder="(tự dịch khi bạn tick chọn dòng này)">
+      ${rvStyleCtl("rv", Object.assign({}, base, it.style || {}))}
     </div>`).join("")}
-    <button class="btn primary big" id="rvGo" style="margin-top:10px">▶ Tiếp tục xuất video</button>
+    <button class="btn primary big" id="rvGo" style="margin-top:10px">${again ? "🎬 Xuất lại video (chỉ vẽ lại chữ, nhanh)" : "▶ Tiếp tục xuất video"}</button>
   </div>`;
 }
 function rvInit() {
@@ -806,9 +813,10 @@ async function submitReview(btn) {
   box.querySelectorAll(".rvvi").forEach(i => { if (i.value.trim() !== i.dataset.orig) edits[i.dataset.id] = i.value.trim(); });
   box.querySelectorAll(".rv").forEach(card => { styles[card.dataset.id] = rvReadCtl(card, "rv"); });
   btn.disabled = true; btn.textContent = "Đang gửi…";
-  try { await api(`/api/jobs/${id}/review`, {method:"POST", headers:{"Content-Type":"application/json"}, body: JSON.stringify({selected, edits, styles})});
-        btn.textContent = "Đã gửi, đang xuất video…"; }
-  catch (e) { alert(e.message); btn.disabled = false; btn.textContent = "▶ Tiếp tục xuất video"; }
+  const again = box.dataset.mode === "rerender";
+  try { await api(`/api/jobs/${id}/${again ? "rerender" : "review"}`, {method:"POST", headers:{"Content-Type":"application/json"}, body: JSON.stringify({selected, edits, styles})});
+        btn.textContent = "Đã gửi, đang xuất video…"; if (again) watch(id); }
+  catch (e) { alert(e.message); btn.disabled = false; btn.textContent = again ? "🎬 Xuất lại video" : "▶ Tiếp tục xuất video"; }
 }
 document.addEventListener("click", e => {
   const r = e.target.closest("[data-rv]");
@@ -818,6 +826,12 @@ document.addEventListener("click", e => {
     card.classList.toggle("off", !c.checked);
   });
   if (e.target.id === "rvGo") submitReview(e.target);
+  const rr = e.target.closest("[data-rerender]");
+  if (rr) {
+    const box = $("#rerenderBox");
+    if (box.innerHTML) { box.innerHTML = ""; return; }
+    api("/api/jobs/" + rr.dataset.rerender).then(j => { box.innerHTML = reviewHtml(j, "rerender"); rvInit(); box.scrollIntoView({behavior:"smooth", block:"start"}); });
+  }
 });
 document.addEventListener("change", e => {
   if (e.target.matches("#rvBox input[type=checkbox][data-id]")) e.target.closest(".rv").classList.toggle("off", !e.target.checked);
@@ -828,7 +842,8 @@ function resultHtml(j) {
   if (j.status === "review") return reviewHtml(j);
   if (j.status !== "done") return "";
   const f = n => `/api/jobs/${j.id}/files/${n}`;
-  let h = `<video controls src="${f(j.result)}" style="margin-top:10px"></video>
+  let h = `${j.rerender_error ? `<div class="err">Xuất lại lỗi: ${esc(j.rerender_error)}</div>` : ""}
+    <video controls src="${f(j.result)}?v=${esc(String(j.updated || ""))}" style="margin-top:10px"></video>
     <div class="row" style="margin-top:8px"><a class="btn primary small" href="${f(j.result)}?download=1">⬇ Tải video</a>
     <a class="btn small" href="${f(j.srt)}?download=1">⬇ Phụ đề .srt</a>
 </div>
@@ -848,7 +863,11 @@ function resultHtml(j) {
     <div id="caps" data-id="${j.id}">${captionHtml(j.captions)}</div>`;
   if (j.transcript?.length) h += `<details><summary>Lời thoại (${j.transcript.length} câu)</summary><div class="tr">${
     j.transcript.map(t => `<div><span class="zh">${esc(t.zh)}</span><br>${esc(t.vi)}</div>`).join("")}</div></details>`;
-  if (j.screen_texts?.length) h += `<details><summary>Chữ trên hình (${j.screen_texts.length})</summary><div class="tr">${
+  if (j.screen_items?.length) h += `<div class="cap"><h4>🔤 Chữ trên hình (${j.screen_items.length} dòng)
+      <button class="btn small primary" data-rerender="${j.id}">🎨 Chỉnh từng dòng chữ & xuất lại</button></h4>
+      <div class="muted">Đổi bản dịch, phông chữ, kiểu chữ, màu nền, màu chữ cho từng dòng rồi xuất lại nhanh (không xử lý lại từ đầu).</div>
+      <div id="rerenderBox"></div></div>`;
+  else if (j.screen_texts?.length) h += `<details><summary>Chữ trên hình (${j.screen_texts.length})</summary><div class="tr">${
     j.screen_texts.map(t => `<div><span class="zh">${esc(t.zh)}</span><br>${esc(t.vi)}</div>`).join("")}</div></details>`;
   if (j.debug_images?.length) h += `<details><summary>Ảnh kiểm tra (xanh = chữ đã dịch, vàng = chữ trên đồ vật giữ nguyên, đỏ = logo đã xoá)</summary><div class="dbg">${
     j.debug_images.map(n => `<a href="${f(n)}" target="_blank"><img src="${f(n)}"></a>`).join("")}</div></details>`;
