@@ -79,3 +79,31 @@ def video_encode_args(quality="high", color="bt709", fps_str=None):
 
 
 AUDIO_ARGS = ["-c:a", "aac", "-b:a", "256k", "-ar", "48000", "-ac", "2"]
+
+
+def video_duration(p) -> float:
+    """Thời lượng của riêng luồng HÌNH (không lấy theo luồng tiếng)."""
+    out = subprocess.run(["ffprobe", "-v", "error", "-select_streams", "v:0", "-show_entries",
+                          "stream=duration:format=duration", "-of", "default=nw=1", str(p)],
+                         capture_output=True, text=True).stdout
+    vals = {}
+    for line in out.splitlines():
+        if "=" in line:
+            k, v = line.split("=", 1)
+            try:
+                vals.setdefault(k, float(v))
+            except ValueError:
+                pass
+    return vals.get("duration") or probe_duration(p)
+
+
+def mux_exact(video_only, audio, out, video_args=None):
+    """Ghép tiếng vào hình với độ dài ĐÚNG BẰNG phần hình: tiếng dài hơn thì cắt, ngắn hơn thì bù im lặng.
+
+    Không dùng -shortest (ffmpeg 4.x trên Colab đôi khi để thừa vài giây tiếng -> cuối video đứng hình).
+    """
+    dur = video_duration(video_only)
+    vargs = video_args or ["-c:v", "copy"]
+    run(["ffmpeg", "-y", "-loglevel", "error", "-i", video_only, "-i", audio, "-map", "0:v:0", "-map", "1:a:0",
+         *vargs, "-af", "apad", "-t", f"{dur:.3f}", *AUDIO_ARGS, "-movflags", "+faststart", out])
+    return dur

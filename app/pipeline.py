@@ -8,7 +8,7 @@ from pathlib import Path
 from . import config, onscreen, signature, speech
 from .config import JobOptions
 from .downloader import download
-from .utils import AUDIO_ARGS, has_audio, probe_duration, run, video_encode_args, write_srt
+from .utils import has_audio, mux_exact, probe_duration, run, video_encode_args, write_srt
 
 STYLE_KEYS = {"text_preset", "bg_mode", "bg_color", "text_color", "stroke_color", "bg_opacity", "font"}
 
@@ -185,10 +185,15 @@ def render_output(job, info, opts, src, dub_wav, end_t, work, log):
     if info["tracks"] or info["regions"] or sig or info.get("scale", 1.0) != 1.0:
         onscreen.render(src, dub_wav, info, opts, stage, log=log, signature=sig)
     else:
-        run(["ffmpeg", "-y", "-loglevel", "error", "-i", src, "-i", dub_wav, "-map", "0:v:0", "-map", "1:a:0",
-             "-t", f"{end_t:.3f}", *video_encode_args(opts.quality, info.get("color", "bt709")), *AUDIO_ARGS,
-             "-shortest", stage])
-    if opts.burn_subs:
+        vonly = work / "video_only.mp4"
+        run(["ffmpeg", "-y", "-loglevel", "error", "-i", src, "-map", "0:v:0", "-an", "-t", f"{end_t:.3f}",
+             *video_encode_args(opts.quality, info.get("color", "bt709")), vonly])
+        mux_exact(vonly, dub_wav, stage)
+    srt_ok = (job.dir / "result.srt").exists() and (job.dir / "result.srt").stat().st_size > 0
+    if opts.burn_subs and not srt_ok:
+        job.log("  không có lời thoại → bỏ qua bước in phụ đề")
+        shutil.move(str(stage), str(tmp_out))
+    elif opts.burn_subs:
         shutil.copy(job.dir / "result.srt", work / "subs.srt")
         style = ("FontName=Noto Sans,FontSize=16,PrimaryColour=&H00FFFFFF,BackColour=&H99000000,"
                  "BorderStyle=3,Outline=1,Alignment=2,MarginV=24")

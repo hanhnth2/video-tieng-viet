@@ -758,8 +758,9 @@ class FrameReader:
 
 
 def render(video: Path, audio: Path, info, opts, out: Path, log=print, signature=None):
-    from .utils import AUDIO_ARGS, video_encode_args
+    from .utils import mux_exact, video_encode_args
     fps, W, H = info["fps"], info["W"], info["H"]
+    vonly = out.with_name(out.stem + ".video.mp4")
     scale = info.get("scale", 1.0)
     nframes = info["nframes"]
     end_t = info["trim_at"] or 1e9
@@ -768,13 +769,13 @@ def render(video: Path, audio: Path, info, opts, out: Path, log=print, signature
     with open(log_path, "w") as lg:
         proc = subprocess.Popen(
             ["ffmpeg", "-y", "-loglevel", "error", "-f", "rawvideo", "-pix_fmt", "bgr24", "-s", f"{W}x{H}",
-             "-r", info.get("fps_str") or f"{fps}", "-i", "-", "-i", str(audio), "-map", "0:v", "-map", "1:a",
+             "-r", info.get("fps_str") or f"{fps}", "-i", "-", "-map", "0:v",
              # chuyển BGR -> YUV đúng chuẩn màu của video gốc (tránh lệch màu / mờ khi xử lý qua OpenCV)
              "-sws_flags", SWS,
              "-vf", "pad=ceil(iw/2)*2:ceil(ih/2)*2,scale=out_color_matrix="
                     + ("bt709" if info.get("color", "bt709") == "bt709" else "bt601") + ":out_range=tv",
-             *video_encode_args(opts.quality, info.get("color", "bt709")), *AUDIO_ARGS, "-shortest",
-             str(out)],
+             *video_encode_args(opts.quality, info.get("color", "bt709")), "-an",
+             str(vonly)],
             stdin=subprocess.PIPE, stderr=lg)
         cap = FrameReader(video, W, H, info.get("color", "bt709"), sharpen=scale != 1.0)
         idx = 0
@@ -818,3 +819,5 @@ def render(video: Path, audio: Path, info, opts, out: Path, log=print, signature
             proc.wait()
     if proc.returncode != 0:
         raise RuntimeError(log_path.read_text()[-1500:])
+    mux_exact(vonly, audio, out)
+    vonly.unlink(missing_ok=True)

@@ -229,7 +229,9 @@ def build_dub(segs, vi, opts, work: Path, src_video: Path, total: float, log=pri
         dur = probe_duration(mp3)
         filt = []
         if dur > allowed:
-            factor = min(dur / allowed, opts.max_speedup)
+            # câu cuối: được đọc nhanh hơn (tối đa 2x) để kết thúc trước khi hết hình, không bị cắt ngang
+            lim = opts.max_speedup if i + 1 < len(segs) else max(opts.max_speedup, 2.0)
+            factor = min(dur / allowed, lim)
             filt.append(f"atempo={factor:.3f}")
             dur /= factor
         wav = work / f"tts_{i:04d}.wav"
