@@ -657,7 +657,7 @@ function captionHtml(c) {
           <select id="hkSec"><option value="2.5">2.5 giây</option><option value="3" selected>3 giây</option><option value="4">4 giây</option><option value="5">5 giây</option></select></div></div>
       </div>
       ${(c.hooks || []).map(h => `<div class="hook">
-        <div class="rowsb"><span class="tag">${esc(h.type || "Hook")}</span>
+        <div class="rowsb"><span><span class="tag">${esc(h.type || "Hook")}</span>${h.score ? ` <span class="tag" style="background:var(--accent-soft);color:var(--accent)">⭐ ${esc(String(h.score))}/10</span>` : ""}</span>
           <span><button class="btn small" data-copy="${esc(h.text)}">Chép</button>
           <button class="btn small" data-burn="${esc(h.overlay || h.text)}">🎬 Chèn vào video</button></span></div>
         <div class="htext">${esc(h.text)}</div>
