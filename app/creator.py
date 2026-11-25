@@ -140,10 +140,9 @@ def stock_search(keywords: str, used: set, log=print) -> str | None:
             log(f"  Pexels lỗi mạng: {e}")
     if config.PIXABAY_API_KEY:
         try:
-            r = httpx.get("https://pixabay.com/api/videos/", params={"key": config.PIXABAY_API_KEY, "q": q,
-                                                                     "per_page": 20, "safesearch": "true"}, timeout=30)
-            if r.status_code == 200:
-                hits = [h for h in r.json().get("hits", []) if (h.get("duration") or 0) >= 3]
+            data = _pixabay_cached(q)
+            if data is not None:
+                hits = [h for h in data.get("hits", []) if (h.get("duration") or 0) >= 3]
                 # ưu tiên video dọc (Pixabay phần lớn là video ngang -> sẽ cắt giữa thành khung dọc)
                 def _portrait(h):
                     v = (h.get("videos") or {}).get("medium") or {}
@@ -155,10 +154,30 @@ def stock_search(keywords: str, used: set, log=print) -> str | None:
                         if u and u not in used:
                             return u
             else:
-                log(f"  Pixabay báo lỗi {r.status_code}")
+                log("  Pixabay không trả kết quả (sai khoá hoặc bị giới hạn lượt)")
         except httpx.HTTPError as e:
             log(f"  Pixabay lỗi mạng: {e}")
     return None
+
+
+def _pixabay_cached(q: str):
+    """Pixabay yêu cầu lưu kết quả tìm kiếm 24 giờ, không gọi lặp lại."""
+    import hashlib
+    import time
+    d = config.CACHE_DIR / "pixabay"
+    d.mkdir(parents=True, exist_ok=True)
+    f = d / (hashlib.md5(q.lower().encode()).hexdigest() + ".json")
+    if f.exists() and time.time() - f.stat().st_mtime < 24 * 3600:
+        try:
+            return json.loads(f.read_text(encoding="utf-8"))
+        except ValueError:
+            pass
+    r = httpx.get("https://pixabay.com/api/videos/", params={"key": config.PIXABAY_API_KEY, "q": q,
+                                                             "per_page": 20, "safesearch": "true"}, timeout=30)
+    if r.status_code != 200:
+        return None
+    f.write_text(r.text, encoding="utf-8")
+    return r.json()
 
 
 def _download(url, dest: Path) -> Path | None:
