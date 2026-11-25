@@ -838,7 +838,8 @@ document.addEventListener("change", e => {
 });
 
 function resultHtml(j) {
-  if (j.status === "error") return `<div class="err">${esc(j.error)}</div>`;
+  if (j.status === "error") return `<div class="err">${esc(j.error)}</div>
+    <button class="btn primary" style="margin-top:8px" data-resume="${j.id}">▶ Chạy tiếp (bỏ qua các bước đã xong)</button>`;
   if (j.status === "review") return reviewHtml(j);
   if (j.status !== "done") return "";
   const f = n => `/api/jobs/${j.id}/files/${n}`;
@@ -941,7 +942,9 @@ async function nvGo(btn) {
   try { const j = await api(`/api/jobs/${id}/create`, {method:"POST", body:fd}); loadJobs(); watch(j.id); window.scrollTo({top:0, behavior:"smooth"}); }
   catch (e) { alert(e.message); btn.disabled = false; btn.textContent = "🎬 Tạo video mới"; }
 }
-document.addEventListener("click", e => {
+document.addEventListener("click", async e => {
+  const rs = e.target.closest("[data-resume]");
+  if (rs) { rs.disabled = true; try { await api(`/api/jobs/${rs.dataset.resume}/resume`, {method:"POST"}); watch(rs.dataset.resume); loadJobs(); } catch (err) { alert(err.message); rs.disabled = false; } }
   if (e.target.id === "nvScript") nvScript(e.target);
   if (e.target.id === "nvGo") nvGo(e.target);
   if (e.target.id === "nvAdd") { const c = nvRead(); c.push({voice: "", onscreen: "", keywords: "", media: "auto"}); nvRender(c); }
@@ -976,6 +979,7 @@ async function loadJobs() {
       <div class="muted">${new Date(j.created*1000).toLocaleString("vi-VN")} · ${Math.round(j.progress||0)}%</div>
       <div class="row" style="margin-top:6px"><button class="btn small" data-a="open">Xem</button>
       ${j.status === "done" ? `<a class="btn small" href="/api/jobs/${j.id}/files/${j.result}?download=1">⬇ Video</a>` : ""}
+      ${j.status === "error" ? `<button class="btn small" data-resume="${j.id}">▶ Chạy tiếp</button>` : ""}
       ${["done","error"].includes(j.status) ? '<button class="btn small" data-a="del">Xoá</button>' : ""}</div>`;
     d.querySelector('[data-a=open]').onclick = () => { watch(j.id); window.scrollTo({top:0, behavior:"smooth"}); };
     const del = d.querySelector('[data-a=del]');
@@ -986,6 +990,8 @@ async function loadJobs() {
   if (running && !currentId) watch(running.id);
 }
 $("#refresh").onclick = loadJobs;
+api("/api/storage").then(st => { if (st.colab_temp) { const w = document.createElement("div"); w.className = "warn";
+  w.textContent = "⚠ Lịch sử đang lưu tạm trên Colab: Colab tắt là mất. Bật lưu vào Google Drive ở ô 3 của Colab (USE_DRIVE = True)."; $("#jobs").before(w); } }).catch(() => {});
 
 (async () => {
   VOICES = await api("/api/voices"); renderVoices();

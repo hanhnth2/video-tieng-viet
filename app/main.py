@@ -252,6 +252,19 @@ async def create_from(jid: str, spec: str = Form(...), files: list[UploadFile] =
     return _public(job)
 
 
+@app.post("/api/jobs/{jid}/resume")
+def resume_job(jid: str):
+    if not manager.resume(jid):
+        raise HTTPException(400, "Không chạy tiếp được job này (đã xong, đang chạy, hoặc thiếu video nguồn)")
+    return {"ok": True}
+
+
+@app.get("/api/storage")
+def storage():
+    d = str(config.DATA_DIR)
+    return {"drive": "/drive/" in d, "colab_temp": d.startswith("/content/") and "/drive/" not in d}
+
+
 @app.get("/api/stock/status")
 def stock_status():
     return {"pexels": bool(config.PEXELS_API_KEY), "pixabay": bool(config.PIXABAY_API_KEY)}

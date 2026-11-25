@@ -9,7 +9,7 @@ import uuid
 from concurrent.futures import ThreadPoolExecutor
 from pathlib import Path
 
-from .config import JOBS_DIR, MAX_WORKERS, JobOptions
+from .config import JOBS_DIR, MAX_RESUME, MAX_WORKERS, JobOptions
 
 
 class Job:
@@ -68,12 +68,25 @@ class JobManager:
     def __init__(self):
         self.pool = ThreadPoolExecutor(max_workers=MAX_WORKERS)
         self.jobs: dict[str, Job] = {}
+        interrupted = []
         for d in sorted(JOBS_DIR.iterdir()) if JOBS_DIR.exists() else []:
             if (d / "job.json").exists():
                 j = Job(d.name)
-                if j.data.get("status") in ("queued", "running", "review"):
-                    j.update(status="error", error="Server đã khởi động lại khi job đang chạy. Hãy tạo lại.")
                 self.jobs[d.name] = j
+                if j.data.get("status") not in ("queued", "running", "review"):
+                    continue
+                if j.data.get("rerendering"):   # đang xuất lại: video cũ vẫn còn
+                    j.update(status="done", progress=100, rerendering=False,
+                             rerender_error="Colab/server tắt khi đang xuất lại. Bấm chỉnh chữ & xuất lại lần nữa.")
+                else:
+                    interrupted.append(j)
+        # Colab tắt giữa chừng -> tự chạy tiếp từ bước đã lưu
+        for j in interrupted:
+            n = int(j.data.get("resume_count") or 0)
+            if n >= MAX_RESUME:
+                j.update(status="error", error=f"Bị gián đoạn {n} lần liên tiếp. Bấm ▶ Chạy tiếp để thử lại.")
+            else:
+                self.resume(j.id, auto=True)
 
     def create(self, input_text: str, opts: JobOptions, uploaded: Path | None = None) -> Job:
         jid = time.strftime("%Y%m%d-%H%M%S-") + uuid.uuid4().hex[:6]
@@ -87,12 +100,36 @@ class JobManager:
         self.pool.submit(self._run, job, opts)
         return job
 
+    def resume(self, jid: str, auto=False) -> bool:
+        """Chạy tiếp job bị gián đoạn (Colab tắt / lỗi giữa chừng) từ bước đã lưu."""
+        j = self.jobs.get(jid)
+        if not j or j.data.get("status") not in ("queued", "running", "review", "error"):
+            return False
+        if j.data.get("kind") == "create":
+            parent = self.jobs.get(j.data.get("parent", ""))
+            try:
+                spec = json.loads((j.dir / "spec.json").read_text(encoding="utf-8"))
+            except Exception:  # noqa: BLE001
+                return False
+            j.update(status="queued", error=None, step_label="Chờ chạy tiếp",
+                     resume_count=int(j.data.get("resume_count") or 0) + (1 if auto else 0))
+            j.log("↻ Chạy tiếp sau khi bị gián đoạn")
+            self.pool.submit(self._run_create, j, spec, parent.dir if parent else None)
+            return True
+        if not (j.dir / "source.mp4").exists() and not str(j.data.get("input", "")).startswith("http"):
+            return False
+        j.update(status="queued", error=None, review=None, step_label="Chờ chạy tiếp",
+                 resume_count=int(j.data.get("resume_count") or 0) + (1 if auto else 0))
+        j.log("↻ Chạy tiếp sau khi bị gián đoạn (bỏ qua các bước đã xong)")
+        self.pool.submit(self._run, j, JobOptions.from_dict(j.data.get("options") or {}))
+        return True
+
     def _run(self, job: Job, opts: JobOptions):
         from .pipeline import process
         job.update(status="running", started=time.time())
         try:
             process(job, opts)
-            job.update(status="done", finished=time.time())
+            job.update(status="done", finished=time.time(), resume_count=0)
             job.log("✅ Xong!")
         except Exception as e:  # noqa: BLE001
             traceback.print_exc()
@@ -122,7 +159,7 @@ class JobManager:
         job.log("▶ Sáng tạo video mới theo kịch bản")
         try:
             create_video(job, spec, job.dir / "media", parent_dir)
-            job.update(status="done", progress=100, result="result.mp4", srt="result.srt", finished=time.time())
+            job.update(status="done", progress=100, result="result.mp4", srt="result.srt", finished=time.time(), resume_count=0)
             job.log("✅ Xong!")
         except Exception as e:  # noqa: BLE001
             traceback.print_exc()
@@ -133,7 +170,7 @@ class JobManager:
         j = self.jobs.get(jid)
         if not j or j.data.get("status") != "done" or not (j.dir / "render_state.pkl").exists():
             return False
-        j.update(status="queued", step_label="Chờ xuất lại", rerender_error=None)
+        j.update(status="queued", step_label="Chờ xuất lại", rerender_error=None, rerendering=True)
         self.pool.submit(self._rerun, j, decision)
         return True
 
@@ -142,12 +179,12 @@ class JobManager:
         try:
             rerender(job, decision)
             job.log("✅ Đã xuất lại xong!")
-            job.update(status="done", finished=time.time())
+            job.update(status="done", finished=time.time(), rerendering=False)
         except Exception as e:  # noqa: BLE001
             traceback.print_exc()
             job.log("❌ Xuất lại lỗi: " + str(e)[:300])
             # video cũ vẫn còn nguyên -> giữ trạng thái hoàn tất, báo lỗi xuất lại
-            job.update(status="done", progress=100, rerender_error=str(e)[:500])
+            job.update(status="done", progress=100, rerender_error=str(e)[:500], rerendering=False)
 
     def get(self, jid: str) -> Job | None:
         return self.jobs.get(jid)

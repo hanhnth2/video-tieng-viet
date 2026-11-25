@@ -272,9 +272,22 @@ def create_video(job, spec: dict, media_dir: Path, src_job_dir: Path | None = No
     for i, sc in enumerate(scenes):
         job.update(progress=round(5 + 75 * i / len(scenes), 1), step_label=f"Dựng cảnh {i + 1}/{len(scenes)}")
         text = captions.soften(str(sc["voice"]).strip())[:240]
+        wav, seg = work / f"v{i}.wav", work / f"seg{i}.mp4"
+        if wav.exists() and seg.exists():   # cảnh đã dựng xong trước khi Colab tắt -> dùng lại
+            dur = probe_duration(wav) + (0.6 if i == 0 else 0.35)
+            voice_parts.append((wav, dur))
+            segs.append(seg)
+            choice = str(sc.get("media") or "auto")   # giữ đúng thứ tự file / đoạn video gốc cho các cảnh sau
+            if choice == "auto" and pool:
+                pool.pop(0)
+            elif src_clean and (choice == "source" or (choice == "auto" and spec.get("use_source"))):
+                src_cursor = 0.0 if src_cursor + dur > src_len else src_cursor
+                src_cursor += dur
+            job.log(f"  ↻ cảnh {i + 1}: dùng lại cảnh đã dựng")
+            continue
         mp3 = voices.synth(text, opts.voice, work / f"v{i}.mp3", speed=opts.speed)
-        wav = work / f"v{i}.wav"
-        run(["ffmpeg", "-y", "-loglevel", "error", "-i", mp3, "-ac", "1", "-ar", "48000", wav])
+        run(["ffmpeg", "-y", "-loglevel", "error", "-i", mp3, "-ac", "1", "-ar", "48000", work / "v_tmp.wav"])
+        (work / "v_tmp.wav").replace(wav)
         dur = probe_duration(wav) + (0.6 if i == 0 else 0.35)
         voice_parts.append((wav, dur))
         # chọn hình cho cảnh
@@ -308,7 +321,7 @@ def create_video(job, spec: dict, media_dir: Path, src_job_dir: Path | None = No
         vis = work / f"vis{i}.mp4"
         _visual(src, dur, vis, i, start)
         # chữ trên hình
-        seg = work / f"seg{i}.mp4"
+        seg_tmp = work / "seg_tmp.mp4"
         cap = str(sc.get("onscreen") or "").strip()
         if cap:
             png = work / f"cap{i}.png"
@@ -316,9 +329,11 @@ def create_video(job, spec: dict, media_dir: Path, src_job_dir: Path | None = No
             y = int(H * (0.38 if i == 0 else 0.70) - h / 2)
             run(["ffmpeg", "-y", "-loglevel", "error", "-i", vis, "-loop", "1", "-t", f"{dur:.3f}", "-i", png,
                  "-filter_complex", f"[1:v]format=rgba,fade=t=in:st=0:d=0.2:alpha=1[c];[0:v][c]overlay=(W-w)/2:{y}:shortest=1,format=yuv420p[v]",
-                 "-map", "[v]", "-c:v", "libx264", "-preset", "veryfast", "-crf", "18", "-r", str(FPS), seg])
+                 "-map", "[v]", "-c:v", "libx264", "-preset", "veryfast", "-crf", "18", "-r", str(FPS), seg_tmp])
         else:
-            shutil.copy(vis, seg)
+            shutil.copy(vis, seg_tmp)
+        seg_tmp.replace(seg)
+        vis.unlink(missing_ok=True)
         segs.append(seg)
     # ghép các cảnh
     job.update(progress=82, step_label="Ghép cảnh, lồng nhạc")

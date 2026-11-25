@@ -1,6 +1,8 @@
 """Chạy toàn bộ quy trình cho 1 job."""
 from __future__ import annotations
 
+import json
+import pickle
 import shutil
 import time
 from pathlib import Path
@@ -34,9 +36,35 @@ STEPS = {
 }
 
 
+# ---------------- điểm lưu (checkpoint): Colab tắt giữa chừng thì chạy tiếp từ bước đã xong ----------------
+def _ck(job, name):
+    d = job.dir / "ckpt"
+    d.mkdir(exist_ok=True)
+    return d / name
+
+
+def ck_load(job, name):
+    p = _ck(job, name)
+    if not p.exists():
+        return None
+    try:
+        return pickle.loads(p.read_bytes()) if p.suffix == ".pkl" else json.loads(p.read_text(encoding="utf-8"))
+    except Exception:  # noqa: BLE001  (file ghi dở khi Colab tắt)
+        return None
+
+
+def ck_save(job, name, data):
+    p = _ck(job, name)
+    tmp = p.with_name(p.name + ".tmp")
+    if p.suffix == ".pkl":
+        tmp.write_bytes(pickle.dumps(data))
+    else:
+        tmp.write_text(json.dumps(data, ensure_ascii=False), encoding="utf-8")
+    tmp.replace(p)
+
+
 def process(job, opts: JobOptions):
-    work: Path = job.dir / "work"
-    work.mkdir(parents=True, exist_ok=True)
+    work: Path = config.work_dir(job.dir)
 
     clock = {"t": time.time(), "name": None}
 
@@ -61,7 +89,9 @@ def process(job, opts: JobOptions):
     src = job.dir / "source.mp4"
     if not src.exists():
         step("download")
-        meta = download(job.data["input"], src, log=sub("download"))
+        part = job.dir / "source.part.mp4"
+        meta = download(job.data["input"], part, log=sub("download"))
+        part.replace(src)
         job.update(title=meta.get("title", ""), video_source=meta.get("source", ""))
         if meta.get("source") == "origin":
             job.log("  đã lấy được bản gốc trên CDN (thường không có watermark)")
@@ -70,7 +100,12 @@ def process(job, opts: JobOptions):
 
     # ---------- 2. Dò chữ / logo ----------
     step("analyze")
-    info = onscreen.analyze(src, opts, log=sub("analyze"))
+    info = ck_load(job, "analyze.pkl")
+    if info is not None:
+        job.log("  ↻ dùng lại kết quả dò chữ đã lưu")
+    else:
+        info = onscreen.analyze(src, opts, log=sub("analyze"))
+        ck_save(job, "analyze.pkl", info)
     end_t = info["trim_at"] or total
     # chỉ dịch tiêu đề / phụ đề (chữ chèn lên video); bỏ qua chữ in trên thiết bị, dụng cụ, bao bì
     n_scene = 0
@@ -90,8 +125,14 @@ def process(job, opts: JobOptions):
     dub_wav = None
     if has_audio(src):
         step("asr")
-        wav16 = speech.extract_wav16k(src, work / "orig16k.wav")
-        segs = speech.transcribe(wav16, config.WHISPER_MODEL, log=sub("asr"))
+        segs = ck_load(job, "asr.json")
+        if segs is not None:
+            segs = [tuple(x) for x in segs]
+            job.log("  ↻ dùng lại lời thoại đã nhận dạng")
+        else:
+            wav16 = speech.extract_wav16k(src, work / "orig16k.wav")
+            segs = speech.transcribe(wav16, config.WHISPER_MODEL, log=sub("asr"))
+            ck_save(job, "asr.json", [list(x) for x in segs])
         segs = [(s, min(e, end_t), t) for s, e, t in segs if s < end_t - 0.2]
         job.log(f"  {len(segs)} câu thoại")
     else:
@@ -105,7 +146,13 @@ def process(job, opts: JobOptions):
     text_tracks = cand if review else [t for t in cand if not t.get("skip")]
     screen_texts = list(dict.fromkeys(t["text"] for t in text_tracks))
     all_zh = [s[2] for s in segs] + screen_texts
-    all_vi = speech.translate(all_zh, opts.translator) if all_zh else []
+    saved = ck_load(job, "translate.json")
+    if saved and saved.get("zh") == all_zh:
+        all_vi = saved["vi"]
+        job.log("  ↻ dùng lại bản dịch đã lưu")
+    else:
+        all_vi = speech.translate(all_zh, opts.translator) if all_zh else []
+        ck_save(job, "translate.json", {"zh": all_zh, "vi": all_vi})
     vi_speech = all_vi[:len(segs)]
     vi_map = dict(zip(screen_texts, all_vi[len(segs):]))
     for zh, vi in list(zip(all_zh, all_vi))[:8]:
@@ -121,14 +168,19 @@ def process(job, opts: JobOptions):
             items.append({"id": i, "zh": tr["text"], "vi": tr["vi"], "kind": tr.get("kind"), "score": tr.get("score"),
                           "why": tr.get("why", []), "checked": not tr.get("skip"), "crop": crops.get(i),
                           "t0": round(tr["t0"], 1), "t1": round(tr["t1"], 1)})
-        job.begin_review()
-        job.update(status="review", review=items, step_label="Chờ bạn duyệt chữ trên hình")
-        job.log("⏸ Chờ bạn duyệt chữ trên hình (bỏ chọn chữ không muốn dịch, sửa bản dịch nếu cần)…")
-        decision = job.wait_review(timeout=3 * 3600)
-        job.update(status="running", review=None)
-        if decision is None:
-            job.log("  hết thời gian chờ duyệt → dùng lựa chọn tự động")
-            decision = {"selected": [it["id"] for it in items if it["checked"]], "edits": {}}
+        decision = ck_load(job, "review.json")
+        if decision is not None:
+            job.log("  ↻ dùng lại lựa chọn duyệt chữ đã lưu")
+        else:
+            job.begin_review()
+            job.update(status="review", review=items, step_label="Chờ bạn duyệt chữ trên hình")
+            job.log("⏸ Chờ bạn duyệt chữ trên hình (bỏ chọn chữ không muốn dịch, sửa bản dịch nếu cần)…")
+            decision = job.wait_review(timeout=3 * 3600)
+            job.update(status="running", review=None)
+            if decision is None:
+                job.log("  hết thời gian chờ duyệt → dùng lựa chọn tự động")
+                decision = {"selected": [it["id"] for it in items if it["checked"]], "edits": {}}
+            ck_save(job, "review.json", decision)
         sel = {int(x) for x in decision.get("selected", [])}
         styles = {int(k): v for k, v in (decision.get("styles") or {}).items() if isinstance(v, dict)}
         edits = {int(k): str(v).strip() for k, v in (decision.get("edits") or {}).items() if str(v).strip()}
@@ -148,7 +200,15 @@ def process(job, opts: JobOptions):
                screen_texts=[{"zh": t["text"], "vi": t["vi"]} for t in text_tracks])
 
     step("tts")
-    dub_wav, cues = speech.build_dub(segs, vi_speech, opts, work, src, end_t, log=sub("tts"))
+    tts_ck = ck_load(job, "tts.json")
+    if tts_ck is not None and (job.dir / "dub.wav").exists():
+        cues = [tuple(c) for c in tts_ck["cues"]]
+        job.log("  ↻ dùng lại giọng Việt đã lồng")
+    else:
+        dub_wav, cues = speech.build_dub(segs, vi_speech, opts, work, src, end_t, log=sub("tts"))
+        shutil.copy(dub_wav, job.dir / "dub.part.wav")
+        (job.dir / "dub.part.wav").replace(job.dir / "dub.wav")
+        ck_save(job, "tts.json", {"cues": [list(c) for c in cues]})
     srt = job.dir / "result.srt"
     write_srt(srt, cues)
     shutil.copy(srt, work / "subs.srt")
@@ -162,12 +222,12 @@ def process(job, opts: JobOptions):
     # lưu lại để "chỉnh từng dòng chữ & xuất lại" mà không phải xử lý lại từ đầu
     if not (job.dir / "crops").exists() and cand:
         onscreen.save_crops(src, cand, job.dir / "crops")
-    shutil.copy(dub_wav, job.dir / "dub.wav")
     save_state(job, info, cand, end_t)
     render_output(job, info, opts, src, job.dir / "dub.wav", end_t, work, sub("render"))
 
     step("finish")
     shutil.rmtree(work, ignore_errors=True)
+    shutil.rmtree(job.dir / "ckpt", ignore_errors=True)
     job.update(progress=100, result="result.mp4", srt="result.srt", screen_items=screen_items(job, cand))
 
 
@@ -256,8 +316,7 @@ def rerender(job, decision: dict):
     job.update(status="running", step="render", step_label="Xuất lại video với chữ đã chỉnh", progress=70,
                hook_result=None)
     job.log("▶ Xuất lại video với chữ đã chỉnh")
-    work = job.dir / "work_rerender"
-    work.mkdir(exist_ok=True)
+    work = config.work_dir(job.dir, "work_rerender")
     try:
         def _log(msg, progress=None):
             job.log(msg)

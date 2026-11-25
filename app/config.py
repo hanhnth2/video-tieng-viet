@@ -24,6 +24,16 @@ DATA_DIR = Path(os.environ.get("DATA_DIR", Path(__file__).resolve().parent.paren
 JOBS_DIR = DATA_DIR / "jobs"
 CACHE_DIR = DATA_DIR / "cache"
 JOBS_DIR.mkdir(parents=True, exist_ok=True)
+# Thư mục tạm khi xử lý. Trên Colab: DATA_DIR để trên Google Drive (không mất khi Colab tắt),
+# còn WORK_DIR để trên ổ máy (/content/work) cho nhanh.
+WORK_DIR = os.environ.get("WORK_DIR", "")
+MAX_RESUME = int(os.environ.get("MAX_RESUME", "3"))   # số lần tự chạy tiếp job bị gián đoạn
+
+
+def work_dir(job_dir: Path, name: str = "work") -> Path:
+    d = Path(WORK_DIR) / f"{job_dir.name}_{name}" if WORK_DIR else job_dir / name
+    d.mkdir(parents=True, exist_ok=True)
+    return d
 CACHE_DIR.mkdir(parents=True, exist_ok=True)
 
 WHISPER_MODEL = os.environ.get("WHISPER_MODEL", "medium")
