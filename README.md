@@ -13,6 +13,7 @@ Dán link video Xiaohongshu → nhận về video:
 - **Xoá logo / watermark Xiaohongshu** (chữ 小红书, ID 小红书号, khối logo đỏ, kể cả khi logo nhảy góc)
 - **Cắt đoạn kết** có logo Xiaohongshu
 - Xuất kèm phụ đề `.srt`
+- **🎬 Sáng tạo video mới** lấy cảm hứng từ video (không dịch nguyên văn): AI viết kịch bản mới chia cảnh, bạn sửa từng cảnh; hình lấy từ file bạn tải lên (tự quay hoặc video Xiaohongshu), video gốc đã xoá logo + chữ Trung, rồi kho miễn phí bản quyền Pexels/Pixabay (`PEXELS_API_KEY`, `PIXABAY_API_KEY`)
 
 ## Cấu trúc
 
@@ -27,6 +28,7 @@ app/
   onscreen.py    OCR (RapidOCR), theo dõi chữ, xoá chữ/logo, vẽ chữ Việt, dò outro
   music.py       nhạc nền tự tổng hợp + trộn nhạc (ducking)
   signature.py   chữ ký bản quyền + hiệu ứng chuyển động
+  creator.py     sáng tạo video mới: kịch bản AI + ghép cảnh (file của bạn / video gốc / Pexels / Pixabay)
   captions.py    tạo hook, caption, hashtag + kiểm tra từ ngữ vi phạm
   textstyle.py   kiểu chữ + phông chữ (thêm kiểu mới: sửa PRESETS, thêm font: sửa FONTS)
   static/index.html  giao diện web
@@ -70,6 +72,7 @@ docker compose up -d --build
 | `CLAUDE_MODEL` | Mặc định `claude-opus-5-5` |
 | `FPT_API_KEY` | Bật 9 giọng Việt bản xứ của FPT.AI |
 | `XHS_COOKIE` | Cookie đăng nhập xiaohongshu.com, dùng khi link báo cần đăng nhập |
+| `PEXELS_API_KEY`, `PIXABAY_API_KEY` | Kho video miễn phí cho tính năng Sáng tạo video mới |
 | `MAX_WORKERS` | Số video xử lý song song (máy 1 GPU để 1) |
 
 Giữ nhạc nền mà bỏ giọng Trung: `pip install demucs`, rồi kéo thanh "Giữ âm thanh gốc / nhạc nền" > 0.

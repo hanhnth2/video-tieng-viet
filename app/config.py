@@ -34,6 +34,9 @@ GEMINI_MODEL = os.environ.get("GEMINI_MODEL", "gemini-flash-latest")
 CLAUDE_MODEL = os.environ.get("CLAUDE_MODEL", "claude-opus-5-5")
 FPT_API_KEY = os.environ.get("FPT_API_KEY", "")
 XHS_COOKIE = os.environ.get("XHS_COOKIE", "")
+# Kho video miễn phí bản quyền (tuỳ chọn) cho tính năng "Sáng tạo video mới"
+PEXELS_API_KEY = os.environ.get("PEXELS_API_KEY", "")
+PIXABAY_API_KEY = os.environ.get("PIXABAY_API_KEY", "")
 
 
 @dataclass

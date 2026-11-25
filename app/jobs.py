@@ -99,6 +99,36 @@ class JobManager:
             job.log("❌ " + str(e)[:500])
             job.update(status="error", error=str(e)[:1000], finished=time.time())
 
+    def create_new(self, parent: Job, spec: dict, media: list[tuple[str, Path]]) -> Job:
+        """Job 'Sáng tạo video mới' lấy cảm hứng từ job parent."""
+        jid = time.strftime("%Y%m%d-%H%M%S-") + uuid.uuid4().hex[:6]
+        title = str(spec.get("title") or "Video mới")[:80]
+        job = Job(jid, {"id": jid, "kind": "create", "parent": parent.id, "status": "queued", "title": title,
+                        "input": f"✨ Video mới: {title}", "options": spec.get("options") or {},
+                        "created": time.time(), "progress": 0, "logs": [], "step_label": "Đang chờ"})
+        mdir = job.dir / "media"
+        mdir.mkdir(exist_ok=True)
+        for name, tmp in media:
+            tmp.replace(mdir / name)
+        (job.dir / "spec.json").write_text(json.dumps(spec, ensure_ascii=False), encoding="utf-8")
+        job.save()
+        self.jobs[jid] = job
+        self.pool.submit(self._run_create, job, spec, parent.dir)
+        return job
+
+    def _run_create(self, job: Job, spec: dict, parent_dir: Path):
+        from .creator import create_video
+        job.update(status="running", started=time.time())
+        job.log("▶ Sáng tạo video mới theo kịch bản")
+        try:
+            create_video(job, spec, job.dir / "media", parent_dir)
+            job.update(status="done", progress=100, result="result.mp4", srt="result.srt", finished=time.time())
+            job.log("✅ Xong!")
+        except Exception as e:  # noqa: BLE001
+            traceback.print_exc()
+            job.log("❌ " + str(e)[:500])
+            job.update(status="error", error=str(e)[:1000], finished=time.time())
+
     def rerender(self, jid: str, decision: dict) -> bool:
         j = self.jobs.get(jid)
         if not j or j.data.get("status") != "done" or not (j.dir / "render_state.pkl").exists():

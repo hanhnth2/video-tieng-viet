@@ -39,7 +39,7 @@ SAFE_NAME = re.compile(r"^[\w.\-]+$")
 
 PUBLIC_FIELDS = ("id", "status", "input", "title", "progress", "step", "step_label", "created", "duration",
                  "error", "result", "srt", "debug_images", "transcript", "screen_texts", "options", "captions", "hook_result", "hook_text", "review", "screen_items", "rerender_error", "updated", "result_size",
-                 "video_source")
+                 "video_source", "kind", "parent")
 
 
 def _public(job, logs=True):
@@ -205,6 +205,56 @@ def burn_hook(jid: str, text: str = Form(...), preset: str = Form("yellow_box"),
         raise HTTPException(500, f"Không chèn được hook: {str(e)[:300]}")
     j.update(hook_result=out.name, hook_text=text)
     return {"file": out.name, "text": text}
+
+
+@app.post("/api/jobs/{jid}/script")
+def make_script(jid: str, tone: str = Form(""), niche: str = Form(""), seconds: int = Form(45)):
+    from . import creator
+    j = manager.get(jid)
+    if not j or j.data.get("status") != "done":
+        raise HTTPException(404, "Job chưa xong")
+    if j.data.get("kind") == "create":
+        raise HTTPException(400, "Hãy viết kịch bản từ video gốc")
+    return creator.script_from_job(j.data, tone, niche, seconds)
+
+
+@app.post("/api/jobs/{jid}/create")
+async def create_from(jid: str, spec: str = Form(...), files: list[UploadFile] = File(default=[])):
+    from . import creator
+    j = manager.get(jid)
+    if not j or j.data.get("status") != "done":
+        raise HTTPException(404, "Job chưa xong")
+    try:
+        sp = json.loads(spec)
+    except json.JSONDecodeError:
+        raise HTTPException(400, "Kịch bản không hợp lệ")
+    if not [s for s in sp.get("scenes", []) if str(s.get("voice", "")).strip()]:
+        raise HTTPException(400, "Kịch bản chưa có cảnh nào")
+    media = []
+    for i, f in enumerate(files[:20]):
+        if not f.filename:
+            continue
+        ext = Path(f.filename).suffix.lower()
+        if ext not in creator.VIDEO_EXT + creator.IMAGE_EXT:
+            raise HTTPException(400, f"File không hỗ trợ: {f.filename}")
+        name = f"{i:02d}_" + re.sub(r"[^\w.\-]+", "_", Path(f.filename).stem)[:40] + ext
+        tmp = Path(tempfile.mkstemp(suffix=ext, dir=config.DATA_DIR)[1])
+        with open(tmp, "wb") as out:
+            shutil.copyfileobj(f.file, out)
+        media.append((name, tmp))
+    # tên file trong kịch bản ("file:<tên gốc>") -> tên đã lưu
+    names = {Path(f.filename).name: n for f, (n, _) in zip([f for f in files[:20] if f.filename], media)}
+    for s in sp.get("scenes", []):
+        m = str(s.get("media") or "")
+        if m.startswith("file:"):
+            s["media"] = "file:" + names.get(m[5:], m[5:])
+    job = manager.create_new(j, sp, media)
+    return _public(job)
+
+
+@app.get("/api/stock/status")
+def stock_status():
+    return {"pexels": bool(config.PEXELS_API_KEY), "pixabay": bool(config.PIXABAY_API_KEY)}
 
 
 @app.post("/api/jobs")

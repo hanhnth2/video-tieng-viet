@@ -862,6 +862,7 @@ function resultHtml(j) {
     </div>
     <div id="hookRes">${j.hook_result ? hookResHtml(j.id, j.hook_result, j.hook_text) : ""}</div>
     <div id="caps" data-id="${j.id}">${captionHtml(j.captions)}</div>`;
+  if (j.kind !== "create") h += newVideoCard(j);
   if (j.transcript?.length) h += `<details><summary>Lời thoại (${j.transcript.length} câu)</summary><div class="tr">${
     j.transcript.map(t => `<div><span class="zh">${esc(t.zh)}</span><br>${esc(t.vi)}</div>`).join("")}</div></details>`;
   if (j.screen_items?.length) h += `<div class="cap"><h4>🔤 Chữ trên hình (${j.screen_items.length} dòng)
@@ -874,6 +875,78 @@ function resultHtml(j) {
     j.debug_images.map(n => `<a href="${f(n)}" target="_blank"><img src="${f(n)}"></a>`).join("")}</div></details>`;
   return h;
 }
+
+// ---------------- ✨ Sáng tạo video mới (lấy cảm hứng, không sao chép)
+let nvFiles = [];
+function newVideoCard(j) {
+  return `<div class="cap" id="nvCard" data-id="${j.id}">
+    <h4>🎬 Sáng tạo video MỚI từ ý tưởng video này</h4>
+    <div class="muted">AI viết kịch bản tiếng Việt mới (không dịch nguyên văn), chia cảnh. Hình mỗi cảnh lấy theo thứ tự: file bạn tải lên → video gốc (đã xoá logo + chữ Trung) nếu bạn bật → kho video miễn phí bản quyền (Pexels / Pixabay) → nền màu.
+    Giọng đọc, nhạc nền, kiểu chữ, chữ ký lấy theo phần ⚙ Cài đặt.</div>
+    <div class="opts" style="margin-top:8px">
+      <div class="opt"><label>Chủ đề trang</label><input type="text" id="nvNiche" placeholder="Để trống: tự nhận (vd Dưỡng sinh)"></div>
+      <div class="opt"><label>Giọng văn</label><input type="text" id="nvTone" placeholder="Gần gũi, như chị em chia sẻ"></div>
+      <div class="opt"><label>Độ dài (giây)</label><select id="nvSec"><option>30</option><option selected>45</option><option>60</option><option>90</option></select></div>
+    </div>
+    <button class="btn primary" id="nvScript" style="margin-top:10px">✍️ Viết kịch bản mới</button>
+    <div id="nvBox"></div></div>`;
+}
+function nvMediaOpts(sel) {
+  const o = [["auto", "Tự động"], ["source", "🎞 Video gốc"], ["stock", "🌐 Kho miễn phí"], ["none", "Nền màu"]]
+    .concat(nvFiles.map(f => ["file:" + f.name, "📁 " + f.name]));
+  return o.map(([v, t]) => `<option value="${esc(v)}" ${v === sel ? "selected" : ""}>${esc(t)}</option>`).join("");
+}
+function nvSceneHtml(s, i) {
+  return `<div class="nvsc" style="border:1px solid var(--line);border-radius:8px;padding:8px;margin-top:8px">
+    <div class="rowsb"><b>Cảnh ${i + 1}${i === 0 ? " · HOOK" : ""}</b><button class="btn small" data-nvdel>✕</button></div>
+    <label class="muted">Lời đọc</label><textarea data-k="voice" rows="2" style="width:100%">${esc(s.voice || "")}</textarea>
+    <div class="opts"><div class="opt"><label>Chữ trên hình</label><input type="text" data-k="onscreen" value="${esc(s.onscreen || "")}"></div>
+    <div class="opt"><label>Từ khoá tìm video kho (tiếng Anh)</label><input type="text" data-k="keywords" value="${esc(s.keywords || "")}"></div>
+    <div class="opt"><label>Hình cảnh này</label><select data-k="media">${nvMediaOpts(s.media || "auto")}</select></div></div></div>`;
+}
+function nvRead() {
+  return [...document.querySelectorAll("#nvScenes .nvsc")].map(c => {
+    const o = {}; c.querySelectorAll("[data-k]").forEach(x => o[x.dataset.k] = x.value.trim()); return o; });
+}
+function nvRender(scenes) { $("#nvScenes").innerHTML = scenes.map(nvSceneHtml).join(""); }
+async function nvScript(btn) {
+  const id = $("#nvCard").dataset.id;
+  btn.disabled = true; btn.textContent = "Đang viết kịch bản…";
+  const fd = new FormData(); fd.append("niche", $("#nvNiche").value); fd.append("tone", $("#nvTone").value); fd.append("seconds", $("#nvSec").value);
+  try {
+    const [r, st] = await Promise.all([api(`/api/jobs/${id}/script`, {method:"POST", body:fd}), api("/api/stock/status")]);
+    $("#nvBox").innerHTML = `<div class="muted" style="margin-top:8px">Viết bởi: ${esc(r.engine)} · chủ đề: ${esc(r.niche)} ${r.note ? "· " + esc(r.note) : ""}</div>
+      ${st.pexels || st.pixabay ? "" : '<div class="warn">⚠ Chưa có PEXELS_API_KEY / PIXABAY_API_KEY: cảnh thiếu hình sẽ là nền màu. Thêm khoá (miễn phí) vào Colab Secrets để tự lấy video kho.</div>'}
+      <div class="opt" style="margin-top:8px"><label>Tiêu đề</label><input type="text" id="nvTitle" value="${esc(r.title)}"></div>
+      <div id="nvScenes"></div>
+      <button class="btn small" id="nvAdd" style="margin-top:8px">＋ Thêm cảnh</button>
+      <div class="opt" style="margin-top:10px"><label>📁 Video / ảnh của bạn (tự quay, hoặc chính video Xiaohongshu đã tải về) — dùng lần lượt cho cảnh "Tự động"</label>
+        <input type="file" id="nvFiles" multiple accept="video/*,image/*"><div class="muted" id="nvFileList"></div></div>
+      <label style="display:flex;gap:6px;align-items:center;margin-top:8px"><input type="checkbox" id="nvUseSrc" checked> Dùng cảnh từ video gốc của job này (tự xoá logo Xiaohongshu + chữ Trung, cắt lần lượt từng đoạn)</label>
+      <div class="warn">⚠ Dùng lại hình của video Xiaohongshu (dù đã xoá logo, đổi lời) vẫn là dùng tác phẩm của người khác: nên xin phép tác giả, ghi nguồn, và trộn thêm cảnh tự quay / kho miễn phí. TikTok, Facebook có thể hạn chế phân phối nội dung trùng lặp.</div>
+      <button class="btn primary big" id="nvGo" style="margin-top:10px">🎬 Tạo video mới</button>`;
+    nvFiles = []; nvRender(r.scenes);
+    $("#nvFiles").onchange = () => { const cur = nvRead(); nvFiles = [...$("#nvFiles").files];
+      $("#nvFileList").textContent = nvFiles.map(f => `${f.name} (${(f.size / 1048576).toFixed(1)} MB)`).join(" · "); nvRender(cur); };
+  } catch (e) { $("#nvBox").innerHTML = `<div class="err">${esc(e.message)}</div>`; }
+  btn.disabled = false; btn.textContent = "✍️ Viết lại kịch bản";
+}
+async function nvGo(btn) {
+  const id = $("#nvCard").dataset.id;
+  const scenes = nvRead().filter(s => s.voice);
+  if (!scenes.length) return alert("Kịch bản chưa có cảnh nào");
+  const spec = {title: $("#nvTitle").value, scenes, use_source: $("#nvUseSrc").checked, options: collectOptions()};
+  const fd = new FormData(); fd.append("spec", JSON.stringify(spec)); nvFiles.forEach(f => fd.append("files", f));
+  btn.disabled = true; btn.textContent = "Đang tải lên…";
+  try { const j = await api(`/api/jobs/${id}/create`, {method:"POST", body:fd}); loadJobs(); watch(j.id); window.scrollTo({top:0, behavior:"smooth"}); }
+  catch (e) { alert(e.message); btn.disabled = false; btn.textContent = "🎬 Tạo video mới"; }
+}
+document.addEventListener("click", e => {
+  if (e.target.id === "nvScript") nvScript(e.target);
+  if (e.target.id === "nvGo") nvGo(e.target);
+  if (e.target.id === "nvAdd") { const c = nvRead(); c.push({voice: "", onscreen: "", keywords: "", media: "auto"}); nvRender(c); }
+  if (e.target.closest("[data-nvdel]")) { e.target.closest(".nvsc").remove(); nvRender(nvRead()); }
+});
 
 function watch(id) {
   currentId = id; clearInterval(timer); $("#current").style.display = "";
