@@ -141,13 +141,18 @@ def stock_search(keywords: str, used: set, log=print) -> str | None:
     if config.PIXABAY_API_KEY:
         try:
             r = httpx.get("https://pixabay.com/api/videos/", params={"key": config.PIXABAY_API_KEY, "q": q,
-                                                                     "per_page": 12, "safesearch": "true"}, timeout=30)
+                                                                     "per_page": 20, "safesearch": "true"}, timeout=30)
             if r.status_code == 200:
-                for hit in r.json().get("hits", []):
+                hits = [h for h in r.json().get("hits", []) if (h.get("duration") or 0) >= 3]
+                # ưu tiên video dọc (Pixabay phần lớn là video ngang -> sẽ cắt giữa thành khung dọc)
+                def _portrait(h):
+                    v = (h.get("videos") or {}).get("medium") or {}
+                    return 0 if (v.get("height") or 0) > (v.get("width") or 1) else 1
+                for hit in sorted(hits, key=_portrait):
                     vids = hit.get("videos") or {}
                     for k in ("large", "medium", "small"):
                         u = (vids.get(k) or {}).get("url")
-                        if u and u not in used and (hit.get("duration") or 0) >= 3:
+                        if u and u not in used:
                             return u
             else:
                 log(f"  Pixabay báo lỗi {r.status_code}")

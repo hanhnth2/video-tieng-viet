@@ -917,7 +917,7 @@ async function nvScript(btn) {
   try {
     const [r, st] = await Promise.all([api(`/api/jobs/${id}/script`, {method:"POST", body:fd}), api("/api/stock/status")]);
     $("#nvBox").innerHTML = `<div class="muted" style="margin-top:8px">Viết bởi: ${esc(r.engine)} · chủ đề: ${esc(r.niche)} ${r.note ? "· " + esc(r.note) : ""}</div>
-      ${st.pexels || st.pixabay ? "" : '<div class="warn">⚠ Chưa có PEXELS_API_KEY / PIXABAY_API_KEY: cảnh thiếu hình sẽ là nền màu. Thêm khoá (miễn phí) vào Colab Secrets để tự lấy video kho.</div>'}
+      ${st.pexels || st.pixabay ? "" : '<div class="warn">⚠ Chưa có PIXABAY_API_KEY (hoặc PEXELS_API_KEY): cảnh thiếu hình sẽ là nền màu. Lấy khoá miễn phí ở pixabay.com/api/docs rồi thêm vào Colab Secrets để tự lấy video kho.</div>'}
       <div class="opt" style="margin-top:8px"><label>Tiêu đề</label><input type="text" id="nvTitle" value="${esc(r.title)}"></div>
       <div id="nvScenes"></div>
       <button class="btn small" id="nvAdd" style="margin-top:8px">＋ Thêm cảnh</button>
