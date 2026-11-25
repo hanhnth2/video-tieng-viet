@@ -330,4 +330,13 @@ def health():
     return JSONResponse({"ok": True})
 
 
+@app.middleware("http")
+async def no_cache_html(request: Request, call_next):
+    """Trang web luôn lấy bản mới nhất sau khi cập nhật (không dùng bản cũ trong bộ nhớ đệm trình duyệt)."""
+    resp = await call_next(request)
+    if request.url.path in ("/", "/index.html"):
+        resp.headers["Cache-Control"] = "no-cache, must-revalidate"
+    return resp
+
+
 app.mount("/", StaticFiles(directory=STATIC, html=True), name="static")
