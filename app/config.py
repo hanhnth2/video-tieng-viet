@@ -71,6 +71,7 @@ class JobOptions:
     bg_mode: str = "preset"          # preset | none (không nền) | color (nền màu bg_color)
     fit_mode: str = "fit"            # fit = khung vừa chữ gốc, không che hình | large = to, dễ đọc
     font_scale: float = 0.8
+    text_size: float = 1.0           # cỡ chữ riêng từng dòng (1.0 = tự động vừa khung chữ gốc; 0.5–2.5)
     cover_mode: str = "box"          # box | mask | solid
     sample_fps: float = 4.0
     min_ocr_conf: float = 0.3

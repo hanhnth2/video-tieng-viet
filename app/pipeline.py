@@ -12,7 +12,7 @@ from .config import JobOptions
 from .downloader import download
 from .utils import has_audio, mux_exact, probe_duration, run, video_encode_args, write_srt
 
-STYLE_KEYS = {"text_preset", "bg_mode", "bg_color", "text_color", "stroke_color", "bg_opacity", "font"}
+STYLE_KEYS = {"text_preset", "bg_mode", "bg_color", "text_color", "stroke_color", "bg_opacity", "font", "text_size"}
 
 
 def track_opts(opts: JobOptions, override: dict | None) -> JobOptions:

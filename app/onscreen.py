@@ -656,12 +656,17 @@ def make_sprite(text, tr, W, opts):
         st["bg"] = "none"
     has_bg = st.get("bg", "none") != "none"
     max_lines = max(2, tr["n"] + 1)
+    k = min(2.5, max(0.4, float(getattr(opts, "text_size", 1.0) or 1.0)))   # cỡ chữ riêng của dòng này
+    if abs(k - 1.0) > 1e-3:
+        # phóng to / thu nhỏ cả cỡ chữ lẫn khung giới hạn quanh chữ gốc
+        box_w, box_h = box_w * k, box_h * k
+        tr = dict(tr, line_h=tr["line_h"] * k)
     if opts.fit_mode == "fit":
         # Vừa khung chữ gốc: khối chữ Việt (kể cả nền) nằm gọn trong vùng chữ Trung đã xoá,
         # chỉ được rộng/cao hơn một chút -> không che hình ảnh xung quanh.
         st.update(textstyle.COMPACT_PAD)
         size0 = max(8, int(tr["line_h"] * max(opts.font_scale, 0.9)))
-        max_w = max(box_w * 1.12, min(W * 0.5, tr["line_h"] * 5))
+        max_w = min(W * 0.96, max(box_w * 1.12, min(W * 0.5, tr["line_h"] * 5)))
         # 1) cố giữ đúng số dòng + chiều cao như chữ gốc (chữ nhỏ lại tối đa còn 60%)
         h1 = box_h * 1.35 + 2 * int(size0 * textstyle.COMPACT_PAD["pady"])
         font, size, lines = textstyle.fit_text(text, opts.font, size0, max_w, tr["n"], st, h1, min_scale=0.6)

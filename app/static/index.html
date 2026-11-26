@@ -151,7 +151,7 @@ video{width:100%;border-radius:10px;background:#000;max-height:560px;display:blo
 .rvgrid{display:grid;grid-template-columns:1fr 1fr;gap:10px;align-items:center}
 @media(max-width:560px){.rvgrid{grid-template-columns:1fr}}
 .rvpvbox{border-radius:8px;min-height:70px;display:grid;place-items:center;padding:8px;background:linear-gradient(135deg,#6b8f71,#c9a46b 55%,#7a6aa8)}
-.rvpvbox img{max-width:100%;max-height:90px}
+.rvpvbox img,.rv .rvpvbox img.rvPv,.rv-add .rvpvbox img.rvPv{max-width:100%;max-height:none;margin:0}
 /* chữ ký */
 #wmBox.off{opacity:.45}
 .wmwrap{display:flex;gap:16px;margin-top:12px;align-items:flex-start}
@@ -739,25 +739,29 @@ function rvStyleCtl(prefix, st) {
     <label title="Màu nền">Màu nền<input type="color" class="${prefix}BgColor" value="${st.bg_color || "#F4C710"}"></label>
     <label class="switch" style="font-size:12px"><input type="checkbox" class="${prefix}FgOn" ${st.text_color ? "checked" : ""}> Màu chữ</label>
     <input type="color" class="${prefix}Fg" value="${st.text_color || "#FFFFFF"}">
+    <label style="min-width:150px">Cỡ chữ <b class="${prefix}SizeV">${Math.round((st.text_size || 1) * 100)}%</b>
+      <input type="range" class="${prefix}Size" min="0.4" max="2.5" step="0.05" value="${st.text_size || 1}"
+        oninput="this.previousElementSibling.textContent = Math.round(this.value * 100) + '%'"></label>
   </div>`;
 }
 function rvReadCtl(root, prefix) {
   const q = c => root.querySelector("." + prefix + c);
   return {text_preset: q("Preset").value, font: q("Font").value, bg_mode: q("Bg").value,
           bg_color: q("Bg").value === "color" ? q("BgColor").value.toUpperCase() : "",
-          text_color: q("FgOn").checked ? q("Fg").value.toUpperCase() : ""};
+          text_color: q("FgOn").checked ? q("Fg").value.toUpperCase() : "", text_size: +(q("Size")?.value || 1)};
 }
 function rvWriteCtl(root, prefix, st) {
   const q = c => root.querySelector("." + prefix + c);
   q("Preset").value = st.text_preset; q("Bg").value = st.bg_mode; if (st.font) q("Font").value = st.font;
   if (st.bg_color) q("BgColor").value = st.bg_color;
   q("FgOn").checked = !!st.text_color; if (st.text_color) q("Fg").value = st.text_color;
+  if (q("Size") && st.text_size) { q("Size").value = st.text_size; q("SizeV").textContent = Math.round(st.text_size * 100) + "%"; }
 }
 function rvPreview(card) {
   const st = rvReadCtl(card, "rv"), img = card.querySelector(".rvPv");
   const text = card.querySelector(".rvvi").value || "Chữ Việt";
   clearTimeout(card._t);
-  card._t = setTimeout(() => { img.src = "/api/text/preview?" + qs({preset: st.text_preset, font: st.font || selFont, text, size: 44,
+  card._t = setTimeout(() => { img.src = "/api/text/preview?" + qs({preset: st.text_preset, font: st.font || selFont, text, size: Math.round(44 * (st.text_size || 1)),
     bg_mode: st.bg_mode, bg_color: st.bg_color, text_color: st.text_color, fit_mode: fitMode}); }, 200);
 }
 function reviewHtml(j, mode) {
@@ -858,7 +862,7 @@ async function abAdd(id, t, box) {
         c.style.cssText = "max-width:100%;max-height:120px;border-radius:6px"; d.querySelector(".abCrop").prepend(c); } catch {}
   const pv = () => { const st = rvReadCtl(d, "ab"); clearTimeout(d._t);
     d._t = setTimeout(() => d.querySelector(".rvPv").src = "/api/text/preview?" + qs({preset: st.text_preset, font: st.font || selFont,
-      text: d.querySelector(".abVi").value || "Chữ Việt", size: 44, bg_mode: st.bg_mode, bg_color: st.bg_color, text_color: st.text_color, fit_mode: fitMode}), 200); };
+      text: d.querySelector(".abVi").value || "Chữ Việt", size: Math.round(44 * (st.text_size || 1)), bg_mode: st.bg_mode, bg_color: st.bg_color, text_color: st.text_color, fit_mode: fitMode}), 200); };
   d.addEventListener("input", pv); pv();
   const fd = new FormData(); fd.append("t", t); fd.append("box", d.dataset.box);
   try {
