@@ -233,7 +233,8 @@ def process(job, opts: JobOptions):
 
 def render_output(job, info, opts, src, dub_wav, end_t, work, log):
     """Vẽ chữ Việt + chữ ký lên video và xuất file result.mp4 (dùng cho cả lần đầu và khi xuất lại)."""
-    text_tracks = [t for t in info["tracks"] if not t["wm"] and not t.get("absorbed") and not t.get("skip")]
+    text_tracks = [t for t in info["tracks"] if not t["wm"] and not t.get("absorbed") and not t.get("skip")
+                   and not t.get("erase_only") and str(t.get("vi", "")).strip()]
     for tr in text_tracks:
         tr["sprite"] = onscreen.make_sprite(tr["vi"], tr, info["W"], track_opts(opts, tr.get("style_override")))
     out = job.dir / "result.mp4"
@@ -284,6 +285,7 @@ def screen_items(job, cand):
         crop = f"crops/c{i}.jpg"
         items.append({"id": i, "zh": tr["text"], "vi": tr.get("vi", ""), "kind": tr.get("kind"),
                       "checked": not tr.get("skip"), "style": tr.get("style_override") or {},
+                      "erase_only": bool(tr.get("erase_only")), "manual": bool(tr.get("manual")),
                       "crop": crop if (job.dir / crop).exists() else None,
                       "t0": round(tr["t0"], 1), "t1": round(tr["t1"], 1)})
     return items
@@ -307,12 +309,31 @@ def rerender(job, decision: dict):
         vis = speech.translate([t["text"] for t in need_tr], opts.translator)
         for tr, v in zip(need_tr, vis):
             tr["vi"] = v
+    erase = {int(x) for x in decision.get("erase_only", [])}
     for i, tr in enumerate(cand):
         tr["skip"] = i not in sel
         if i in edits:
             tr["vi"] = edits[i][:300]
         if i in styles:
             tr["style_override"] = styles[i]
+        tr["erase_only"] = i in erase or (tr.get("manual") and not str(tr.get("vi", "")).strip())
+    # khung chữ bạn quét thêm bằng tay (chữ Trung máy dò sót)
+    from . import manual
+    src = job.dir / "source.mp4"
+    for item in (decision.get("added") or [])[:30]:
+        try:
+            tr = manual.make_track(src, info, item)
+        except (KeyError, TypeError, ValueError):
+            continue
+        if isinstance(item.get("style"), dict):
+            tr["style_override"] = item["style"]
+        idx = len(cand)
+        manual.save_crop(src, item, job.dir / "crops" / f"c{idx}.jpg")
+        info["tracks"].append(tr)
+        cand.append(tr)
+        st["cand"].append(len(info["tracks"]) - 1)
+        label = tr["vi"] or "(chỉ xoá chữ Trung)"
+        job.log(f"  + khung thêm tay {tr['t0']:.1f}s–{tr['t1']:.1f}s: {label}")
     job.update(status="running", step="render", step_label="Xuất lại video với chữ đã chỉnh", progress=70,
                hook_result=None)
     job.log("▶ Xuất lại video với chữ đã chỉnh")

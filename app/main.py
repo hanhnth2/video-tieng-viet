@@ -8,7 +8,7 @@ import tempfile
 from pathlib import Path
 
 from fastapi import FastAPI, File, Form, HTTPException, Request, UploadFile
-from fastapi.responses import FileResponse, JSONResponse, RedirectResponse
+from fastapi.responses import FileResponse, JSONResponse, RedirectResponse, Response
 from fastapi.staticfiles import StaticFiles
 
 from . import auth, captions, config, hookvideo, music, settings, signature, textstyle, voices
@@ -166,7 +166,8 @@ async def submit_review(jid: str, request: Request):
 async def rerender_job(jid: str, request: Request):
     body = await request.json()
     if not manager.rerender(jid, {"selected": body.get("selected", []), "edits": body.get("edits", {}),
-                                  "styles": body.get("styles", {})}):
+                                  "styles": body.get("styles", {}),
+                                  "erase_only": body.get("erase_only", []), "added": body.get("added", [])}):
         raise HTTPException(400, "Video này chưa xuất xong hoặc được làm bằng phiên bản cũ (không chỉnh lại được). Hãy chuyển đổi lại.")
     return {"ok": True}
 
@@ -250,6 +251,44 @@ async def create_from(jid: str, spec: str = Form(...), files: list[UploadFile] =
             s["media"] = "file:" + names.get(m[5:], m[5:])
     job = manager.create_new(j, sp, media)
     return _public(job)
+
+
+@app.get("/api/jobs/{jid}/frame")
+def job_frame(jid: str, t: float = 0.0):
+    """Ảnh khung hình tại giây t, để quét khung chữ máy dò sót."""
+    from . import manual
+    j = manager.get(jid)
+    if not j or not (j.dir / "source.mp4").exists():
+        raise HTTPException(404)
+    data = manual.frame_jpeg(j.dir / "source.mp4", max(0.0, t))
+    if not data:
+        raise HTTPException(404, "Không đọc được khung hình")
+    return Response(data, media_type="image/jpeg", headers={"Cache-Control": "public, max-age=3600"})
+
+
+@app.post("/api/jobs/{jid}/detect")
+def detect_box(jid: str, t: float = Form(...), box: str = Form(...)):
+    """Đọc chữ Trung trong khung bạn quét + dịch + đoán thời gian chữ hiện."""
+    from . import manual, speech
+    j = manager.get(jid)
+    if not j or not (j.dir / "source.mp4").exists():
+        raise HTTPException(404)
+    try:
+        b = [float(v) for v in json.loads(box)][:4]
+        assert len(b) == 4
+    except Exception:  # noqa: BLE001
+        raise HTTPException(400, "Khung không hợp lệ")
+    src = j.dir / "source.mp4"
+    zh = manual.read_text(src, t, b)
+    vi = ""
+    if zh:
+        try:
+            vi = speech.translate([zh], (j.data.get("options") or {}).get("translator", "auto"))[0]
+        except Exception:  # noqa: BLE001
+            vi = ""
+    end = j.data.get("duration") or None
+    t0, t1 = manual.time_range(src, t, b, end)
+    return {"zh": zh, "vi": vi, "t0": t0, "t1": t1}
 
 
 @app.post("/api/jobs/{jid}/resume")

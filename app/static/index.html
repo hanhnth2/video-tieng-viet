@@ -135,7 +135,9 @@ video{width:100%;border-radius:10px;background:#000;max-height:560px;display:blo
 .hook .htext{font-size:14.5px;font-weight:600;margin:4px 0}
 .tag{font-size:11px;font-weight:700;background:var(--warn-soft);color:var(--accent2);border-radius:999px;padding:2px 8px}
 .tag.tscene{background:var(--panel2);color:var(--muted)}
-.rv{border-top:1px solid var(--line);padding:10px 0}
+.rv,.rv-add{border-top:1px solid var(--line);padding:10px 0}
+.rv-add .rvPv{display:block;max-width:100%;max-height:120px;margin:6px 0}
+.rv-add .zh{color:var(--muted);font-size:13px;margin:4px 0}
 .rv.off{opacity:.5}
 .rvhead{display:flex;align-items:center;gap:8px;cursor:pointer}
 .rvhead input{width:18px;height:18px;accent-color:var(--accent)}
@@ -789,13 +791,90 @@ function reviewHtml(j, mode) {
         <div class="rvpvbox"><img class="rvPv" alt=""></div>
       </div>
       <input type="text" class="rvvi" data-id="${it.id}" value="${esc(it.vi || "")}" data-orig="${esc(it.vi || "")}" placeholder="(tự dịch khi bạn tick chọn dòng này)">
+      ${again ? `<label class="switch" style="font-size:12.5px;margin-top:4px"><input type="checkbox" class="rvErase" data-eid="${it.id}" ${it.erase_only ? "checked" : ""}> Chỉ xoá chữ Trung, không ghi chữ Việt (dùng khi chữ bị gộp sai, rồi thêm khung riêng ở dưới)</label>` : ""}
       ${rvStyleCtl("rv", Object.assign({}, base, it.style || {}))}
     </div>`).join("")}
+    ${again ? addBoxHtml(j, base) : ""}
     <button class="btn primary big" id="rvGo" style="margin-top:10px">${again ? "🎬 Xuất lại video (chỉ vẽ lại chữ, nhanh)" : "▶ Tiếp tục xuất video"}</button>
   </div>`;
 }
+
+// ---------------- ➕ Thêm khung chữ máy dò sót: quét khung trên khung hình, điền chữ Việt
+let abBase = {};
+function addBoxHtml(j, base) {
+  abBase = base;
+  const dur = Math.max(1, j.duration || 30);
+  return `<div class="cap" id="abBox" data-id="${j.id}" style="margin-top:12px">
+    <h4>➕ Thêm khung chữ còn sót (chữ Trung máy chưa dịch)</h4>
+    <div class="muted">1) Kéo thanh thời gian tới lúc chữ Trung hiện ra · 2) Dùng chuột / ngón tay <b>quét một khung</b> quanh chữ đó ·
+      3) Tool tự đọc chữ, dịch và đoán thời gian chữ hiện; bạn sửa lại chữ Việt nếu cần. Quét được nhiều khung.</div>
+    <div class="row" style="margin-top:8px;align-items:center;gap:8px">
+      <input type="range" id="abT" min="0" max="${dur.toFixed(2)}" step="0.1" value="0" style="flex:1">
+      <span id="abTv" class="muted" style="min-width:52px">0.0s</span>
+      <button class="btn small" data-abstep="-0.5">◀</button><button class="btn small" data-abstep="0.5">▶</button></div>
+    <div id="abStage" style="position:relative;display:inline-block;max-width:100%;margin-top:8px;touch-action:none;user-select:none;cursor:crosshair">
+      <img id="abImg" src="/api/jobs/${j.id}/frame?t=0" style="display:block;max-width:100%;max-height:70vh;border-radius:8px" draggable="false" alt="">
+      <div id="abRect" style="position:absolute;border:2px dashed #e53935;background:rgba(229,57,53,.15);display:none;pointer-events:none"></div>
+    </div>
+    <div id="abList"></div></div>`;
+}
+function abInit() {
+  const st = $("#abStage"); if (!st) return;
+  const img = $("#abImg"), rect = $("#abRect"), id = $("#abBox").dataset.id;
+  let t0 = null, p0 = null;
+  const loadFrame = () => { const t = +$("#abT").value; $("#abTv").textContent = t.toFixed(1) + "s";
+    clearTimeout(img._t); img._t = setTimeout(() => img.src = `/api/jobs/${id}/frame?t=${t.toFixed(1)}`, 150); };
+  $("#abT").oninput = loadFrame;
+  $("#abBox").querySelectorAll("[data-abstep]").forEach(b => b.onclick = () => {
+    const r = $("#abT"); r.value = Math.min(+r.max, Math.max(0, +r.value + +b.dataset.abstep)); loadFrame(); });
+  const pos = e => { const b = img.getBoundingClientRect();
+    return [Math.min(1, Math.max(0, (e.clientX - b.left) / b.width)), Math.min(1, Math.max(0, (e.clientY - b.top) / b.height))]; };
+  const draw = (a, b) => { const x0 = Math.min(a[0], b[0]), y0 = Math.min(a[1], b[1]);
+    Object.assign(rect.style, {display: "block", left: x0 * 100 + "%", top: y0 * 100 + "%",
+      width: Math.abs(a[0] - b[0]) * 100 + "%", height: Math.abs(a[1] - b[1]) * 100 + "%"}); };
+  st.onpointerdown = e => { e.preventDefault(); st.setPointerCapture(e.pointerId); p0 = pos(e); t0 = +$("#abT").value; draw(p0, p0); };
+  st.onpointermove = e => { if (p0) draw(p0, pos(e)); };
+  st.onpointerup = e => {
+    if (!p0) return; const p1 = pos(e), a = p0; p0 = null;
+    if (Math.abs(p1[0] - a[0]) < 0.02 || Math.abs(p1[1] - a[1]) < 0.01) { rect.style.display = "none"; return; }
+    abAdd(id, t0, [Math.min(a[0], p1[0]), Math.min(a[1], p1[1]), Math.max(a[0], p1[0]), Math.max(a[1], p1[1])]);
+  };
+}
+async function abAdd(id, t, box) {
+  const d = document.createElement("div");
+  d.className = "rv-add abItem"; d.dataset.t = t; d.dataset.box = JSON.stringify(box.map(v => +v.toFixed(4)));
+  d.innerHTML = `<div class="rvhead"><span class="tag">Khung thêm tay</span><span class="muted">quét lúc ${t.toFixed(1)}s</span>
+      <button class="btn small" style="margin-left:auto" data-abdel>✕ Bỏ</button></div>
+    <div class="rvgrid"><div class="abCrop" style="min-height:40px"><div class="zh muted">Đang đọc chữ…</div></div><div class="rvpvbox"><img class="rvPv" alt=""></div></div>
+    <input type="text" class="abVi" placeholder="Chữ Việt sẽ ghi vào khung (để trống = chỉ xoá chữ Trung)">
+    <div class="row" style="gap:8px;margin-top:6px"><label class="muted">Hiện từ <input type="number" class="abT0" step="0.1" min="0" value="${Math.max(0, t - 1).toFixed(1)}" style="width:80px"> s</label>
+      <label class="muted">đến <input type="number" class="abT1" step="0.1" min="0" value="${(t + 2).toFixed(1)}" style="width:80px"> s</label></div>
+    ${rvStyleCtl("ab", abBase)}`;
+  $("#abList").prepend(d);
+  // ảnh cắt khung đã quét (từ khung hình đang xem)
+  const img = $("#abImg"), c = document.createElement("canvas"), W = img.naturalWidth, H = img.naturalHeight;
+  c.width = Math.max(1, (box[2] - box[0]) * W); c.height = Math.max(1, (box[3] - box[1]) * H);
+  try { c.getContext("2d").drawImage(img, box[0] * W, box[1] * H, c.width, c.height, 0, 0, c.width, c.height);
+        c.style.cssText = "max-width:100%;max-height:120px;border-radius:6px"; d.querySelector(".abCrop").prepend(c); } catch {}
+  const pv = () => { const st = rvReadCtl(d, "ab"); clearTimeout(d._t);
+    d._t = setTimeout(() => d.querySelector(".rvPv").src = "/api/text/preview?" + qs({preset: st.text_preset, font: st.font || selFont,
+      text: d.querySelector(".abVi").value || "Chữ Việt", size: 44, bg_mode: st.bg_mode, bg_color: st.bg_color, text_color: st.text_color, fit_mode: fitMode}), 200); };
+  d.addEventListener("input", pv); pv();
+  const fd = new FormData(); fd.append("t", t); fd.append("box", d.dataset.box);
+  try {
+    const r = await api(`/api/jobs/${id}/detect`, {method: "POST", body: fd});
+    d.dataset.zh = r.zh || "";
+    d.querySelector(".abCrop .zh").textContent = r.zh ? r.zh : "(không đọc được chữ, bạn tự gõ chữ Việt)";
+    if (!d.querySelector(".abVi").value) d.querySelector(".abVi").value = r.vi || "";
+    d.querySelector(".abT0").value = r.t0; d.querySelector(".abT1").value = r.t1; pv();
+  } catch (e) { d.querySelector(".abCrop .zh").textContent = "Không đọc được tự động: " + e.message; }
+  $("#abRect").style.display = "none";
+}
+document.addEventListener("click", e => { const x = e.target.closest("[data-abdel]"); if (x) x.closest(".abItem").remove(); });
+
 function rvInit() {
   const box = $("#rvBox"); if (!box) return;
+  abInit();
   box.querySelectorAll(".rv").forEach(rvPreview);
   // ô "cho tất cả": đổi là áp cho mọi đoạn
   box.querySelector(".rvall").addEventListener("input", () => {
@@ -812,9 +891,13 @@ async function submitReview(btn) {
   const edits = {}, styles = {};
   box.querySelectorAll(".rvvi").forEach(i => { if (i.value.trim() !== i.dataset.orig) edits[i.dataset.id] = i.value.trim(); });
   box.querySelectorAll(".rv").forEach(card => { styles[card.dataset.id] = rvReadCtl(card, "rv"); });
+  const erase_only = [...box.querySelectorAll(".rvErase")].filter(c => c.checked).map(c => +c.dataset.eid);
+  const added = [...box.querySelectorAll(".abItem")].map(c => ({t: +c.dataset.t, box: JSON.parse(c.dataset.box), zh: c.dataset.zh || "",
+    vi: c.querySelector(".abVi").value.trim(), t0: +c.querySelector(".abT0").value, t1: +c.querySelector(".abT1").value,
+    style: rvReadCtl(c, "ab")}));
   btn.disabled = true; btn.textContent = "Đang gửi…";
   const again = box.dataset.mode === "rerender";
-  try { await api(`/api/jobs/${id}/${again ? "rerender" : "review"}`, {method:"POST", headers:{"Content-Type":"application/json"}, body: JSON.stringify({selected, edits, styles})});
+  try { await api(`/api/jobs/${id}/${again ? "rerender" : "review"}`, {method:"POST", headers:{"Content-Type":"application/json"}, body: JSON.stringify({selected, edits, styles, erase_only, added})});
         btn.textContent = "Đã gửi, đang xuất video…"; if (again) watch(id); }
   catch (e) { alert(e.message); btn.disabled = false; btn.textContent = again ? "🎬 Xuất lại video" : "▶ Tiếp tục xuất video"; }
 }
